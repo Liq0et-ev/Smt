@@ -1,0 +1,10 @@
+# --- Snowflake ---
+snowflake-connector-python[pandas]==3.12.3
+
+# --- Data ---
+pandas==2.2.3
+requests==2.32.3
+python-dotenv==1.0.1
+
+# --- Automated EDA ---
+ydata-profiling==4.12.1
