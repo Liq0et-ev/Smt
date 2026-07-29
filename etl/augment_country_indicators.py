@@ -11,6 +11,12 @@ each run rather than committed to the repo, so the platform always
 augments against current figures and stays reproducible on any machine
 without needing a Kaggle account/API key.
 
+This script only handles the Python-side ingestion (HTTP fetch -> Bronze
+table) -- it deliberately does NOT do any joining/cleaning. That happens
+in dbt (see transform/), which builds Silver (cleaned/joined) and Gold
+(consumption-ready) models on top of this Bronze table, per the Medallion
+Architecture / dbt patterns from the bootcamp.
+
 Usage:
     python -m etl.augment_country_indicators
 """
@@ -53,8 +59,7 @@ INDICATOR_COLUMNS = [
     "human_development_index",
 ]
 
-RAW_TABLE = "COUNTRY_INDICATORS"
-ANALYTICS_VIEW = "COUNTRY_DAILY_ENRICHED"
+BRONZE_TABLE = "COUNTRY_INDICATORS"
 
 
 def fetch_country_indicators() -> pd.DataFrame:
@@ -74,13 +79,13 @@ def fetch_country_indicators() -> pd.DataFrame:
 def load_into_snowflake(df: pd.DataFrame) -> None:
     config = load_snowflake_config()
     logger.info(
-        "Uploading to %s.%s.%s", config.database, "RAW", RAW_TABLE
+        "Uploading to %s.%s.%s", config.database, "BRONZE", BRONZE_TABLE
     )
     upload_dataframe(
         df,
-        table_name=RAW_TABLE,
+        table_name=BRONZE_TABLE,
         database=config.database,
-        schema="RAW",
+        schema="BRONZE",
         config=config,
         overwrite=True,
     )
@@ -89,10 +94,10 @@ def load_into_snowflake(df: pd.DataFrame) -> None:
 def main() -> None:
     df = fetch_country_indicators()
     load_into_snowflake(df)
-    logger.info("Done. Raw table: COVID19_PLATFORM.RAW.%s", RAW_TABLE)
+    logger.info("Done. Bronze table: COVID19_PLATFORM.BRONZE.%s", BRONZE_TABLE)
     logger.info(
-        "Next: run sql/04_build_analytics_layer.sql to join this against "
-        "the core epidemiological tables and build %s.", ANALYTICS_VIEW
+        "Next: run `dbt run` in transform/ to build the Silver (cleaned/"
+        "joined) and Gold (consumption-ready) models on top of this table."
     )
 
 

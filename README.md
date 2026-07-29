@@ -2,9 +2,10 @@
 
 Capstone project: an end-to-end analytics platform built on **Snowflake**
 (structured COVID-19 data from the Snowflake Marketplace + augmented
-demographic/economic data), **MongoDB** (supplementary semi-structured
-data: annotations/comments), a **FastAPI** backend, and an interactive
-**Dash/Plotly** dashboard with forecasting and clustering.
+demographic/economic data, transformed with **dbt** following **Medallion
+Architecture** — Bronze/Silver/Gold), **MongoDB** (supplementary
+semi-structured data: annotations/comments), a **FastAPI** backend, and an
+interactive **Dash/Plotly** dashboard with forecasting and clustering.
 
 > Status: work in progress — being built incrementally, task by task.
 > See [`docs/tasks/`](docs/tasks/) for a write-up of each task as it lands,
@@ -15,9 +16,35 @@ data: annotations/comments), a **FastAPI** backend, and an interactive
 ```
 sql/                  Snowflake DDL/DML: setup, resource monitors, EDA,
                        optimization, MATCH_RECOGNIZE pattern queries
+etl/                   Python ingestion scripts (Bronze layer)
+transform/             dbt project: Silver (staging) + Gold (marts) models
+eda/                   Automated EDA tooling
+common/                Shared Snowflake/env config used across etl/eda/api/dashboard
 docs/tasks/            One write-up per assignment task
 docs/PROGRESS.md        Checklist of the 10 assignment tasks
 ```
+
+## Architecture: Medallion (Bronze / Silver / Gold)
+
+```
+Snowflake Marketplace ─┐
+  (JHU, ECDC, OWID,     ├──▶  dbt staging  ──▶  dbt marts  ──▶  FastAPI  ──▶  Dash dashboard
+   Google Mobility...)  │      (SILVER)          (GOLD)          (Task 4)      (Task 5)
+                         │
+Our World in Data ───▶ Python ETL ──▶ BRONZE
+ (demographic/economic)  (etl/augment_country_indicators.py)
+```
+
+- **Bronze** (`COVID19_PLATFORM.BRONZE`): raw external data, as ingested by
+  Python — currently `COUNTRY_INDICATORS` (Our World in Data).
+- **Silver** (`COVID19_PLATFORM.SILVER`): cleaned/renamed/filtered tables,
+  built by dbt staging models directly from the Marketplace source tables
+  and Bronze.
+- **Gold** (`COVID19_PLATFORM.GOLD`): joined, business-level marts (e.g.
+  `country_daily_enriched`) — what the API and dashboard actually query —
+  plus forecasting/clustering output (Task 6).
+
+See [`transform/README.md`](transform/README.md) for how to run dbt.
 
 ## Task 1 — Snowflake Marketplace dataset + resource monitors ✅
 
@@ -29,12 +56,18 @@ for full write-up (including the full 44-table inventory). Summary:
    `COVID19_EPIDEMIOLOGICAL_DATA` (44 tables).
 2. Ran [`sql/00_setup_warehouse_and_db.sql`](sql/00_setup_warehouse_and_db.sql)
    to create a cost-controlled warehouse (`COVID_WH`, XSMALL, auto-suspend)
-   and working database (`COVID19_PLATFORM`).
+   and working database (`COVID19_PLATFORM`) with Bronze/Silver/Gold schemas.
 3. Ran [`sql/02_resource_monitors.sql`](sql/02_resource_monitors.sql) to
    create a project-scoped resource monitor (`COVID_WH_MONITOR`, 5
    credits/day) attached to `COVID_WH`, layered on top of Snowflake trial's
    pre-existing account-level monitors (`DAILY_MONITORING`,
    `MONTHLY_MONITORING`).
+
+## Task 2 — Data Exploration and Enhancement (in progress)
+
+See [`docs/tasks/task2_data_exploration_and_enhancement.md`](docs/tasks/task2_data_exploration_and_enhancement.md).
+SQL-based EDA, Python augmentation into Bronze, dbt transformation into
+Silver/Gold, and an automated EDA profiler.
 
 Further setup/deployment instructions (Docker Compose, env vars, running the
 API/dashboard) will be added here as those pieces land.

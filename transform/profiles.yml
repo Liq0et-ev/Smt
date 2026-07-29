@@ -1,0 +1,18 @@
+# Committed profiles.yml -- safe because it only references environment
+# variable NAMES via env_var(), never actual secrets. Point dbt at this
+# file with: export DBT_PROFILES_DIR=$(pwd)/transform
+# (requires the same .env used by the Python scripts to be loaded into
+# the shell environment, e.g. `set -a && source .env && set +a`)
+covid_platform:
+  target: dev
+  outputs:
+    dev:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user: "{{ env_var('SNOWFLAKE_USER') }}"
+      password: "{{ env_var('SNOWFLAKE_PASSWORD') }}"
+      role: "{{ env_var('SNOWFLAKE_ROLE', 'ACCOUNTADMIN') }}"
+      database: "{{ env_var('SNOWFLAKE_DATABASE', 'COVID19_PLATFORM') }}"
+      warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE', 'COVID_WH') }}"
+      schema: "GOLD"
+      threads: 4

@@ -35,6 +35,12 @@ models/*.joblib
 # Docker
 *.log
 
+# dbt
+transform/target/
+transform/dbt_packages/
+transform/logs/
+transform/.user.yml
+
 # MongoDB local data dir if bind-mounted
 mongo-data/
 

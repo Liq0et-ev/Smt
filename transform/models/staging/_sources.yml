@@ -1,0 +1,45 @@
+version: 2
+
+sources:
+  - name: marketplace
+    description: >
+      Snowflake Marketplace "COVID-19 Epidemiological Data" (Starschema),
+      acquired in Task 1. Read-only share -- dbt only selects from it,
+      never writes back.
+    database: COVID19_EPIDEMIOLOGICAL_DATA
+    schema: PUBLIC
+    tables:
+      - name: ecdc_global
+        description: European CDC daily country-level cases/deaths.
+        columns:
+          - name: country_region
+          - name: date
+          - name: cases
+          - name: deaths
+      - name: owid_vaccinations
+        description: Our World in Data vaccination rollout by country/day.
+      - name: goog_global_mobility_report
+        description: >
+          Google mobility trends. Mixes country-level and sub-national
+          (province/state) rows in the same table -- staging model filters
+          to country-level only (province_state IS NULL).
+      - name: jhu_covid_19
+        description: >
+          Johns Hopkins global case counts (primary source). SCHEMA NOT YET
+          FULLY CONFIRMED against the live account as of this commit --
+          the staging model for this source is a pass-through pending
+          `DESCRIBE TABLE JHU_COVID_19` results.
+      - name: cdc_inpatient_beds_all
+        description: US hospital bed capacity.
+
+  - name: bronze
+    description: Our own Bronze-layer tables, loaded by the Python ETL scripts in etl/.
+    database: COVID19_PLATFORM
+    schema: BRONZE
+    tables:
+      - name: country_indicators
+        description: >
+          Country-level demographic/economic indicators from Our World in
+          Data, loaded by etl/augment_country_indicators.py. See that
+          script for why this augmentation exists (Marketplace's own
+          DEMOGRAPHICS table is US-county-level only).

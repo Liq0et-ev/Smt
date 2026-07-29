@@ -1,6 +1,9 @@
 # --- Snowflake ---
 snowflake-connector-python[pandas]==3.12.3
 
+# --- Transformation (Silver/Gold layer) ---
+dbt-snowflake==1.9.1
+
 # --- Data ---
 pandas==2.2.3
 requests==2.32.3

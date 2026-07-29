@@ -1,0 +1,53 @@
+version: 2
+
+models:
+  - name: stg_ecdc_global
+    description: Silver-layer cleaned ECDC cases/deaths, one row per (country, date).
+    columns:
+      - name: country_name
+        tests: [not_null]
+      - name: report_date
+        tests: [not_null]
+      - name: confirmed_cases
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: -1000000000
+              config:
+                severity: warn   # negative deltas are legitimate reporting corrections (see Task 2 EDA) -- warn, don't fail
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [country_name, report_date]
+
+  - name: stg_owid_vaccinations
+    description: Silver-layer cleaned vaccination rollout by country/day.
+    columns:
+      - name: country_name
+        tests: [not_null]
+      - name: report_date
+        tests: [not_null]
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [country_name, report_date]
+
+  - name: stg_google_mobility
+    description: Silver-layer country-level-only mobility trends.
+    columns:
+      - name: country_name
+        tests: [not_null]
+      - name: report_date
+        tests: [not_null]
+
+  - name: stg_country_indicators
+    description: Silver-layer country demographic/economic indicators.
+    columns:
+      - name: iso_code
+        tests: [not_null, unique]
+      - name: population
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+
+  - name: stg_jhu_covid_19
+    description: >
+      PLACEHOLDER pass-through pending schema confirmation -- no column
+      tests yet, see model SQL comment.

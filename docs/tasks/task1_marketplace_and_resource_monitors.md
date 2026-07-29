@@ -85,8 +85,12 @@ against `JHU_COVID_19`, rather than relying on this table alone.
   `SELECT CURRENT_ACCOUNT(), CURRENT_REGION();`
 - Warehouse `COVID_WH` created (XSMALL, 60s auto-suspend, auto-resume) via
   [`sql/00_setup_warehouse_and_db.sql`](../../sql/00_setup_warehouse_and_db.sql)
-- Working database `COVID19_PLATFORM` created (schemas `RAW`, `ANALYTICS`,
-  `ML`)
+- Working database `COVID19_PLATFORM` created, following **Medallion
+  Architecture** (Bronze/Silver/Gold, as taught in the bootcamp's
+  Databricks/Delta Lake module, implemented here on Snowflake): schemas
+  `BRONZE` (raw external data landed by Python), `SILVER` (cleaned/joined,
+  built by dbt), `GOLD` (consumption-ready marts, built by dbt). See
+  [`transform/README.md`](../../transform/README.md).
 
 ## 3. Resource monitors
 

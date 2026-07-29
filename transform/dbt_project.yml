@@ -1,0 +1,26 @@
+name: 'covid_platform'
+version: '1.0.0'
+config-version: 2
+
+profile: 'covid_platform'
+
+model-paths: ["models"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+# Medallion Architecture: staging models clean/rename raw sources into
+# the Silver layer; mart models build the Gold layer consumed by the
+# FastAPI backend and the dashboard.
+models:
+  covid_platform:
+    staging:
+      +schema: silver
+      +materialized: view
+    marts:
+      +schema: gold
+      +materialized: table

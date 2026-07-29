@@ -46,7 +46,7 @@ def load_snowflake_config() -> SnowflakeConfig:
         role=os.environ.get("SNOWFLAKE_ROLE", "ACCOUNTADMIN"),
         warehouse=os.environ.get("SNOWFLAKE_WAREHOUSE", "COVID_WH"),
         database=os.environ.get("SNOWFLAKE_DATABASE", "COVID19_PLATFORM"),
-        schema=os.environ.get("SNOWFLAKE_SCHEMA", "ANALYTICS"),
+        schema=os.environ.get("SNOWFLAKE_SCHEMA", "GOLD"),
         marketplace_database=os.environ.get(
             "SNOWFLAKE_MARKETPLACE_DATABASE", "COVID19_EPIDEMIOLOGICAL_DATA"
         ),
