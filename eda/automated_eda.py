@@ -31,13 +31,13 @@ logger = logging.getLogger(__name__)
 
 REPORTS_DIR = Path(__file__).resolve().parent.parent / "reports" / "eda"
 
-# Core tables selected in Task 1/2 (see docs/tasks/task1_marketplace_and_resource_monitors.md)
+# Core tables selected in Task 1/2 ("Option C" lean set -- see
+# docs/tasks/task1_marketplace_and_resource_monitors.md)
 CORE_TABLES = [
-    "COVID19_EPIDEMIOLOGICAL_DATA.PUBLIC.ECDC_GLOBAL",
     "COVID19_EPIDEMIOLOGICAL_DATA.PUBLIC.JHU_COVID_19",
+    "COVID19_EPIDEMIOLOGICAL_DATA.PUBLIC.WHO_SITUATION_REPORTS",
     "COVID19_EPIDEMIOLOGICAL_DATA.PUBLIC.OWID_VACCINATIONS",
-    "COVID19_EPIDEMIOLOGICAL_DATA.PUBLIC.GOOG_GLOBAL_MOBILITY_REPORT",
-    "COVID19_EPIDEMIOLOGICAL_DATA.PUBLIC.CDC_INPATIENT_BEDS_ALL",
+    "COVID19_EPIDEMIOLOGICAL_DATA.PUBLIC.DATABANK_DEMOGRAPHICS",
 ]
 
 

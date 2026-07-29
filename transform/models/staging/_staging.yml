@@ -1,8 +1,10 @@
 version: 2
 
 models:
-  - name: stg_ecdc_global
-    description: Silver-layer cleaned ECDC cases/deaths, one row per (country, date).
+  - name: stg_jhu_covid_19
+    description: >
+      Silver-layer cleaned/pivoted JHU cases+deaths, one row per
+      (country, date), country-level only (sub-national rows filtered out).
     columns:
       - name: country_name
         tests: [not_null]
@@ -13,10 +15,10 @@ models:
           - dbt_utils.accepted_range:
               min_value: -1000000000
               config:
-                severity: warn   # negative deltas are legitimate reporting corrections (see Task 2 EDA) -- warn, don't fail
+                severity: warn   # negative deltas can be legitimate reporting corrections (see Task 2 EDA) -- warn, don't fail
     tests:
       - dbt_utils.unique_combination_of_columns:
-          combination_of_columns: [country_name, report_date]
+          combination_of_columns: [iso_code, report_date]
 
   - name: stg_owid_vaccinations
     description: Silver-layer cleaned vaccination rollout by country/day.
@@ -29,25 +31,28 @@ models:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [country_name, report_date]
 
-  - name: stg_google_mobility
-    description: Silver-layer country-level-only mobility trends.
+  - name: stg_who_situation_reports
+    description: >
+      Silver-layer WHO cases/deaths -- independent cross-check against
+      stg_jhu_covid_19 (Task 2 EDA: do the two sources broadly agree?).
     columns:
       - name: country_name
         tests: [not_null]
       - name: report_date
         tests: [not_null]
 
-  - name: stg_country_indicators
-    description: Silver-layer country demographic/economic indicators.
+  - name: stg_databank_demographics
+    description: Silver-layer global country-level demographics (population by sex).
     columns:
       - name: iso_code
         tests: [not_null, unique]
-      - name: population
+      - name: total_population
         tests:
           - dbt_utils.accepted_range:
               min_value: 0
 
-  - name: stg_jhu_covid_19
-    description: >
-      PLACEHOLDER pass-through pending schema confirmation -- no column
-      tests yet, see model SQL comment.
+  - name: stg_country_indicators
+    description: Silver-layer country economic/health-system indicators (Bronze -> Silver).
+    columns:
+      - name: iso_code
+        tests: [not_null, unique]

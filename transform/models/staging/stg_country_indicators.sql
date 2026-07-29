@@ -9,7 +9,6 @@ select
     iso_code,
     continent,
     location                     as country_name,
-    population,
     population_density,
     median_age,
     gdp_per_capita,

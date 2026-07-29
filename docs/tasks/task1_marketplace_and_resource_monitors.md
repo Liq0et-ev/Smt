@@ -57,26 +57,61 @@ purpose):
 | `WHO_SITUATION_REPORTS` | 30,722 | WHO situation reports |
 | `WHO_TIMESERIES` | 238 | WHO time series |
 
-**Core tables selected for this project** (Task 2 onward): `JHU_COVID_19`
-(primary global cases/deaths), `ECDC_GLOBAL` (cross-check), `OWID_VACCINATIONS`
-(vaccination rollout), `GOOG_GLOBAL_MOBILITY_REPORT` (mobility, also used as
-the "big data" example for Task 7 performance optimization), and
-`CDC_INPATIENT_BEDS_*` (healthcare capacity).
+**Core tables selected for this project ("Option C" / lean set)** — chosen
+deliberately over using all 44 tables, to keep the project comfortably
+scoped while still covering every theme the assignment asks about
+(infection, mortality, vaccination, demographics), and because every one
+of these four carries `ISO3166_1` natively, avoiding fragile country-name
+joins across sources:
 
-`OWID_VACCINATIONS` schema (confirmed via `DESCRIBE TABLE`):
-`DATE, COUNTRY_REGION, ISO3166_1, TOTAL_VACCINATIONS, PEOPLE_VACCINATED,
-PEOPLE_FULLY_VACCINATED, DAILY_VACCINATIONS_RAW, DAILY_VACCINATIONS,
-TOTAL_VACCINATIONS_PER_HUNDRED, PEOPLE_VACCINATED_PER_HUNDRED,
-PEOPLE_FULLY_VACCINATED_PER_HUNDRED, DAILY_VACCINATIONS_PER_MILLION,
-VACCINES, LAST_OBSERVATION_DATE, SOURCE_NAME, SOURCE_WEBSITE,
-LAST_UPDATE_DATE, LAST_REPORTED_FLAG`.
+| Table | Role |
+|---|---|
+| `JHU_COVID_19` | Primary global cases/deaths (long-format: one row per country/date/CASE_TYPE) |
+| `WHO_SITUATION_REPORTS` | Independent cross-check against JHU (shorter date coverage) |
+| `OWID_VACCINATIONS` | Vaccination rollout |
+| `DATABANK_DEMOGRAPHICS` | Global, country-level demographics (population by sex) |
 
-`DEMOGRAPHICS` schema (confirmed): `ISO3166_1, ISO3166_2, FIPS, LATITUDE,
-LONGITUDE, STATE, COUNTY, TOTAL_POPULATION, TOTAL_MALE_POPULATION,
-TOTAL_FEMALE_POPULATION` — **US county-level only**, no global country-level
-demographics. This is why Task 2 augments with an external (Kaggle/World
-Bank style) global demographic/economic dataset joined on `ISO3166_1`
-against `JHU_COVID_19`, rather than relying on this table alone.
+Confirmed schemas (via `DESCRIBE TABLE` + sample rows):
+
+- `JHU_COVID_19`: `COUNTRY_REGION, PROVINCE_STATE, COUNTY, FIPS, DATE,
+  CASE_TYPE, CASES, LONG, LAT, ISO3166_1, ISO3166_2, DIFFERENCE,
+  LAST_UPDATED_DATE, LAST_REPORTED_FLAG`. Long-format: `CASE_TYPE` is
+  `'Confirmed'` or `'Deaths'`, `CASES` is the cumulative count for that
+  type, `DIFFERENCE` is the daily delta. Mixes country-level rows with
+  sub-national (province/county) rows in the same table — must filter to
+  `PROVINCE_STATE IS NULL AND COUNTY IS NULL` for country-level analysis.
+- `WHO_SITUATION_REPORTS`: `COUNTRY, TOTAL_CASES, CASES_NEW, DEATHS,
+  DEATHS_NEW, TRANSMISSION_CLASSIFICATION, DAYS_SINCE_LAST_REPORTED_CASE,
+  ISO3166_1, COUNTRY_REGION, DATE, SITUATION_REPORT_NAME,
+  SITUATION_REPORT_URL, LAST_UPDATE_DATE, LAST_REPORTED_FLAG`. Wide format
+  already (no pivot needed), but only 238 distinct report dates total —
+  shorter coverage window than JHU.
+- `OWID_VACCINATIONS`: `DATE, COUNTRY_REGION, ISO3166_1,
+  TOTAL_VACCINATIONS, PEOPLE_VACCINATED, PEOPLE_FULLY_VACCINATED,
+  DAILY_VACCINATIONS_RAW, DAILY_VACCINATIONS,
+  TOTAL_VACCINATIONS_PER_HUNDRED, PEOPLE_VACCINATED_PER_HUNDRED,
+  PEOPLE_FULLY_VACCINATED_PER_HUNDRED, DAILY_VACCINATIONS_PER_MILLION,
+  VACCINES, LAST_OBSERVATION_DATE, SOURCE_NAME, SOURCE_WEBSITE,
+  LAST_UPDATE_DATE, LAST_REPORTED_FLAG`.
+- `DATABANK_DEMOGRAPHICS`: `ISO3166_1, ISO3166_2, FIPS, LATITUDE,
+  LONGITUDE, STATE, COUNTY, TOTAL_POPULATION, TOTAL_MALE_POPULATION,
+  TOTAL_FEMALE_POPULATION, COUNTRY_REGION`. Confirmed via sample rows to be
+  **global, country-level** (one row per country, `STATE`/`COUNTY` null) —
+  distinct from the similarly-named but US-county-only `DEMOGRAPHICS`
+  table. Because this gives us global population natively, Task 2's Python
+  augmentation ([`etl/augment_country_indicators.py`](../../etl/augment_country_indicators.py))
+  deliberately skips re-fetching population and instead adds genuinely
+  missing indicators: median age, GDP per capita, hospital beds per
+  thousand, human development index.
+
+Tables considered but **not** used in this lean set (available if scope
+expands later): `ECDC_GLOBAL`/`ECDC_GLOBAL_WEEKLY` (redundant with
+JHU+WHO as case/death sources), `GOOG_GLOBAL_MOBILITY_REPORT`/`APPLE_MOBILITY`
+(behavioral data, no mobility angle in this v1), `CDC_INPATIENT_BEDS_*`/
+`KFF_*` (US-specific healthcare capacity), and the country-specific
+regional tables (`PCM_DPS_COVID19` (Italy), `RKI_GER_COVID19_DASHBOARD`
+(Germany), `SCS_BE_*` (Belgium), `VH_CAN_DETAILED` (Canada)) since JHU/WHO
+already give global coverage.
 
 ## 2. Account setup
 

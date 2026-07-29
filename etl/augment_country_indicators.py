@@ -33,16 +33,17 @@ logger = logging.getLogger(__name__)
 
 OWID_LATEST_URL = "https://covid.ourworldindata.org/data/latest/owid-covid-latest.csv"
 
-# Demographic/economic columns we augment with (deliberately excludes OWID's
-# own case/death/vaccination counts -- those we already have natively in
-# Snowflake via JHU_COVID_19 / ECDC_GLOBAL / OWID_VACCINATIONS, and mixing
-# duplicate sources for the same metric would just create a reconciliation
-# problem rather than adding information).
+# Demographic/economic columns we augment with. Deliberately excludes:
+#   - OWID's own case/death/vaccination counts -- we already have those
+#     natively via JHU_COVID_19 / WHO_SITUATION_REPORTS / OWID_VACCINATIONS
+#   - "population" -- confirmed natively available, globally, via the
+#     Marketplace's own DATABANK_DEMOGRAPHICS table (country-level; not to
+#     be confused with the similarly-named but US-county-only DEMOGRAPHICS
+#     table). No point re-fetching a metric we already have in Snowflake.
 INDICATOR_COLUMNS = [
     "iso_code",
     "continent",
     "location",
-    "population",
     "population_density",
     "median_age",
     "aged_65_older",

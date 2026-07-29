@@ -1,8 +1,11 @@
 -- =====================================================================
 -- Task 2 (part A): SQL-based structural EDA on the Marketplace dataset.
 -- Run in Snowsight against COVID19_EPIDEMIOLOGICAL_DATA.PUBLIC.
--- Goal: understand structure, patterns, and gaps in the core tables
--- before we augment/model on top of them.
+--
+-- Table set: JHU_COVID_19, WHO_SITUATION_REPORTS, DATABANK_DEMOGRAPHICS,
+-- OWID_VACCINATIONS (Option C / "lean" set -- see
+-- docs/tasks/task1_marketplace_and_resource_monitors.md for why these
+-- four instead of all 44 available tables).
 -- =====================================================================
 
 USE WAREHOUSE COVID_WH;
@@ -10,49 +13,48 @@ USE DATABASE COVID19_EPIDEMIOLOGICAL_DATA;
 USE SCHEMA PUBLIC;
 
 -- ---------------------------------------------------------------------
--- 0) JHU_COVID_19: schema not yet confirmed against the live account.
---    Run this first and share the output before relying on the table
---    below it -- other queries in this file assume the confirmed
---    schemas already captured in docs/tasks/task1_marketplace_and_resource_monitors.md
---    (ECDC_GLOBAL, OWID_VACCINATIONS, GOOG_GLOBAL_MOBILITY_REPORT, APPLE_MOBILITY).
--- ---------------------------------------------------------------------
-DESCRIBE TABLE JHU_COVID_19;
-SELECT * FROM JHU_COVID_19 LIMIT 20;
-
--- ---------------------------------------------------------------------
--- 1) ECDC_GLOBAL: coverage and date range
+-- 1) JHU_COVID_19: coverage, granularity, and CASE_TYPE breakdown
 -- ---------------------------------------------------------------------
 SELECT
-    COUNT(*)                           AS total_rows,
-    COUNT(DISTINCT COUNTRY_REGION)     AS distinct_countries,
-    MIN(DATE)                          AS earliest_date,
-    MAX(DATE)                          AS latest_date,
-    DATEDIFF('day', MIN(DATE), MAX(DATE)) AS days_span
-FROM ECDC_GLOBAL;
+    COUNT(*)                                    AS total_rows,
+    COUNT(DISTINCT COUNTRY_REGION)              AS distinct_countries,
+    COUNT(DISTINCT CASE_TYPE)                   AS distinct_case_types,
+    COUNT_IF(PROVINCE_STATE IS NULL AND COUNTY IS NULL) AS country_level_rows,
+    COUNT_IF(PROVINCE_STATE IS NOT NULL OR COUNTY IS NOT NULL) AS sub_national_rows,
+    MIN(DATE)                                   AS earliest_date,
+    MAX(DATE)                                   AS latest_date
+FROM JHU_COVID_19;
 
--- 2) ECDC_GLOBAL: data quality -- nulls and negative values (reporting
---    corrections in COVID data often show up as negative daily deltas)
+-- What CASE_TYPE values actually exist? (staging model assumes 'Confirmed'/'Deaths')
+SELECT CASE_TYPE, COUNT(*) AS row_count
+FROM JHU_COVID_19
+GROUP BY CASE_TYPE
+ORDER BY row_count DESC;
+
+-- 2) JHU_COVID_19: data quality -- nulls, negative deltas, duplicate grain
 SELECT
-    COUNT_IF(CASES IS NULL)   AS null_cases,
-    COUNT_IF(DEATHS IS NULL)  AS null_deaths,
-    COUNT_IF(CASES < 0)       AS negative_case_rows,
-    COUNT_IF(DEATHS < 0)      AS negative_death_rows
-FROM ECDC_GLOBAL;
+    COUNT_IF(CASES IS NULL)      AS null_cases,
+    COUNT_IF(DIFFERENCE < 0)     AS negative_difference_rows
+FROM JHU_COVID_19
+WHERE PROVINCE_STATE IS NULL AND COUNTY IS NULL;
 
--- 3) ECDC_GLOBAL: duplicate (country, date) pairs -- should be zero if
---    the table is a clean daily grain; non-zero reveals a data quality gap
-SELECT COUNTRY_REGION, DATE, COUNT(*) AS row_count
-FROM ECDC_GLOBAL
-GROUP BY COUNTRY_REGION, DATE
+SELECT COUNTRY_REGION, DATE, CASE_TYPE, COUNT(*) AS row_count
+FROM JHU_COVID_19
+WHERE PROVINCE_STATE IS NULL AND COUNTY IS NULL
+GROUP BY COUNTRY_REGION, DATE, CASE_TYPE
 HAVING COUNT(*) > 1
 ORDER BY row_count DESC
 LIMIT 20;
 
--- 4) ECDC_GLOBAL: which countries have reporting gaps (missing dates in
---    their own min/max range)? Uses a generated calendar spine per country.
-WITH country_range AS (
+-- 3) JHU_COVID_19: missing-date gaps per country (country-level rows only)
+WITH country_level AS (
+    SELECT COUNTRY_REGION, DATE
+    FROM JHU_COVID_19
+    WHERE PROVINCE_STATE IS NULL AND COUNTY IS NULL AND CASE_TYPE = 'Confirmed'
+),
+country_range AS (
     SELECT COUNTRY_REGION, MIN(DATE) AS start_date, MAX(DATE) AS end_date
-    FROM ECDC_GLOBAL
+    FROM country_level
     GROUP BY COUNTRY_REGION
 ),
 expected_dates AS (
@@ -60,14 +62,14 @@ expected_dates AS (
         c.COUNTRY_REGION,
         DATEADD('day', SEQ4(), c.start_date) AS expected_date
     FROM country_range c,
-         TABLE(GENERATOR(ROWCOUNT => 5000)) -- upper bound on days spanned
+         TABLE(GENERATOR(ROWCOUNT => 5000))
     WHERE DATEADD('day', SEQ4(), c.start_date) <= c.end_date
 )
 SELECT
     e.COUNTRY_REGION,
     COUNT(*) AS missing_dates
 FROM expected_dates e
-LEFT JOIN ECDC_GLOBAL a
+LEFT JOIN country_level a
     ON a.COUNTRY_REGION = e.COUNTRY_REGION AND a.DATE = e.expected_date
 WHERE a.DATE IS NULL
 GROUP BY e.COUNTRY_REGION
@@ -75,44 +77,60 @@ ORDER BY missing_dates DESC
 LIMIT 20;
 
 -- ---------------------------------------------------------------------
--- 5) OWID_VACCINATIONS: coverage and structural gaps
+-- 4) WHO_SITUATION_REPORTS: coverage window (expected to be shorter than JHU)
+-- ---------------------------------------------------------------------
+SELECT
+    COUNT(*)                            AS total_rows,
+    COUNT(DISTINCT COUNTRY_REGION)      AS distinct_countries,
+    COUNT(DISTINCT DATE)                AS distinct_report_dates,
+    MIN(DATE)                           AS earliest_date,
+    MAX(DATE)                           AS latest_date
+FROM WHO_SITUATION_REPORTS;
+
+-- 5) Cross-check: how much do JHU and WHO agree on overlapping (country, date)?
+WITH jhu AS (
+    SELECT COUNTRY_REGION, DATE, CASES AS jhu_cases
+    FROM JHU_COVID_19
+    WHERE PROVINCE_STATE IS NULL AND COUNTY IS NULL AND CASE_TYPE = 'Confirmed'
+)
+SELECT
+    w.COUNTRY_REGION,
+    w.DATE,
+    w.TOTAL_CASES AS who_cases,
+    jhu.jhu_cases,
+    jhu.jhu_cases - w.TOTAL_CASES AS diff
+FROM WHO_SITUATION_REPORTS w
+JOIN jhu ON jhu.COUNTRY_REGION = w.COUNTRY_REGION AND jhu.DATE = w.DATE
+WHERE ABS(jhu.jhu_cases - w.TOTAL_CASES) > 1000
+ORDER BY ABS(diff) DESC
+LIMIT 20;
+
+-- ---------------------------------------------------------------------
+-- 6) OWID_VACCINATIONS: coverage
 -- ---------------------------------------------------------------------
 SELECT
     COUNT(*)                                    AS total_rows,
     COUNT(DISTINCT COUNTRY_REGION)              AS distinct_countries,
     MIN(DATE)                                   AS earliest_date,
     MAX(DATE)                                   AS latest_date,
-    COUNT_IF(TOTAL_VACCINATIONS IS NULL)        AS null_total_vaccinations,
-    COUNT_IF(PEOPLE_FULLY_VACCINATED IS NULL)   AS null_fully_vaccinated
+    COUNT_IF(TOTAL_VACCINATIONS IS NULL)        AS null_total_vaccinations
 FROM OWID_VACCINATIONS;
 
--- 6) Cross-check: which countries appear in ECDC_GLOBAL (cases/deaths)
---    but never appear in OWID_VACCINATIONS (vaccination gap)?
-SELECT DISTINCT e.COUNTRY_REGION
-FROM ECDC_GLOBAL e
-LEFT JOIN OWID_VACCINATIONS v ON v.COUNTRY_REGION = e.COUNTRY_REGION
-WHERE v.COUNTRY_REGION IS NULL
-ORDER BY 1;
-
 -- ---------------------------------------------------------------------
--- 7) GOOG_GLOBAL_MOBILITY_REPORT: this is the largest table (11.7M rows)
---    -- confirm granularity (country-level vs sub-region) before using it
--- ---------------------------------------------------------------------
-SELECT
-    COUNT(*)                                        AS total_rows,
-    COUNT(DISTINCT COUNTRY_REGION)                  AS distinct_countries,
-    COUNT_IF(PROVINCE_STATE IS NULL)                AS country_level_rows,
-    COUNT_IF(PROVINCE_STATE IS NOT NULL)             AS sub_national_rows,
-    MIN(DATE)                                       AS earliest_date,
-    MAX(DATE)                                       AS latest_date
-FROM GOOG_GLOBAL_MOBILITY_REPORT;
-
--- ---------------------------------------------------------------------
--- 8) DEMOGRAPHICS: confirm it really is US-county-only (Task 1 finding)
---    -- this is the justification for the Task 2 Python augmentation step
+-- 7) DATABANK_DEMOGRAPHICS: confirm global country-level coverage
+--    (vs. the similarly-named but US-county-only DEMOGRAPHICS table)
 -- ---------------------------------------------------------------------
 SELECT
     COUNT(*)                        AS total_rows,
-    COUNT(DISTINCT STATE)           AS distinct_states,
-    COUNT(DISTINCT ISO3166_1)       AS distinct_country_codes
-FROM DEMOGRAPHICS;
+    COUNT(DISTINCT COUNTRY_REGION)  AS distinct_countries,
+    COUNT_IF(STATE IS NOT NULL)     AS rows_with_state,
+    COUNT_IF(TOTAL_POPULATION IS NULL) AS null_population
+FROM DATABANK_DEMOGRAPHICS;
+
+-- 8) Coverage check: which countries have cases (JHU) but no demographics row?
+SELECT DISTINCT j.COUNTRY_REGION
+FROM JHU_COVID_19 j
+LEFT JOIN DATABANK_DEMOGRAPHICS d ON d.ISO3166_1 = j.ISO3166_1
+WHERE j.PROVINCE_STATE IS NULL AND j.COUNTY IS NULL
+  AND d.ISO3166_1 IS NULL
+ORDER BY 1;

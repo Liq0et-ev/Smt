@@ -28,14 +28,17 @@
    EDA process is automated instead of hand-writing exploration queries
    per table.
 
-## Why augment with external data instead of relying on the built-in `DEMOGRAPHICS` table
+## Why augment with external data at all, given `DATABANK_DEMOGRAPHICS` already gives us global population
 
-Task 1's exploration found `COVID19_EPIDEMIOLOGICAL_DATA.PUBLIC.DEMOGRAPHICS`
-is **US-county-level only** (columns: `STATE, COUNTY, TOTAL_POPULATION, ...`).
-Since our core epidemiological tables (`JHU_COVID_19`, `ECDC_GLOBAL`) are
-country-level and global, that table can't answer "which countries had
-higher case rates relative to population/GDP/median age" — hence pulling in
-a genuinely external, country-level dataset for real augmentation credit.
+Task 1's exploration found two similarly-named tables: `DEMOGRAPHICS`
+(US-county-level only) and `DATABANK_DEMOGRAPHICS` (confirmed global,
+country-level — population by sex). So population itself doesn't need
+external augmentation. What's still missing natively: **median age, GDP
+per capita, hospital beds per thousand, human development index** —
+exactly the indicators needed to ask "did richer/older/better-resourced
+countries fare differently?" `etl/augment_country_indicators.py`
+deliberately fetches only those, not population, to avoid duplicating a
+metric we already have.
 
 ## How the EDA quality checks became dbt tests
 
@@ -59,10 +62,10 @@ cp .env.example .env
 ```
 
 1. **SQL EDA first** — open [`sql/03_eda_structure.sql`](../../sql/03_eda_structure.sql)
-   in a Snowsight worksheet, run it (select all → run), and share the
-   `DESCRIBE TABLE JHU_COVID_19` + sample-row output back — that table's
-   exact schema isn't confirmed yet and `transform/models/staging/stg_jhu_covid_19.sql`
-   is currently a pass-through pending it.
+   in a Snowsight worksheet and run it (select all → run) to see the
+   duplicate/gap/cross-check results against the live account (schemas for
+   all four core tables are already confirmed and built into the dbt
+   staging models).
 2. **Augment with external data (Bronze)**:
    ```bash
    python -m etl.augment_country_indicators

@@ -28,12 +28,22 @@ docs/PROGRESS.md        Checklist of the 10 assignment tasks
 
 ```
 Snowflake Marketplace ─┐
-  (JHU, ECDC, OWID,     ├──▶  dbt staging  ──▶  dbt marts  ──▶  FastAPI  ──▶  Dash dashboard
-   Google Mobility...)  │      (SILVER)          (GOLD)          (Task 4)      (Task 5)
+  (JHU_COVID_19,        ├──▶  dbt staging  ──▶  dbt marts  ──▶  FastAPI  ──▶  Dash dashboard
+   WHO_SITUATION_REPORTS│      (SILVER)          (GOLD)          (Task 4)      (Task 5)
+   OWID_VACCINATIONS,   │
+   DATABANK_DEMOGRAPHICS)
                          │
 Our World in Data ───▶ Python ETL ──▶ BRONZE
- (demographic/economic)  (etl/augment_country_indicators.py)
+ (economic/health-system  (etl/augment_country_indicators.py)
+  indicators only --
+  population already
+  native via DATABANK_DEMOGRAPHICS)
 ```
+
+Table selection is deliberately a lean 4-table subset ("Option C") out of
+the 44 available in the Marketplace dataset — see
+[`docs/tasks/task1_marketplace_and_resource_monitors.md`](docs/tasks/task1_marketplace_and_resource_monitors.md#core-tables-selected-for-this-project-option-c--lean-set)
+for the reasoning and the full 44-table catalog.
 
 - **Bronze** (`COVID19_PLATFORM.BRONZE`): raw external data, as ingested by
   Python — currently `COUNTRY_INDICATORS` (Our World in Data).

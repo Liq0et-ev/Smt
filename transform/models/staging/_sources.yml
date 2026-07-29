@@ -5,32 +5,39 @@ sources:
     description: >
       Snowflake Marketplace "COVID-19 Epidemiological Data" (Starschema),
       acquired in Task 1. Read-only share -- dbt only selects from it,
-      never writes back.
+      never writes back. Table subset chosen deliberately (Option C /
+      "lean" set, see docs/tasks/task1_marketplace_and_resource_monitors.md)
+      -- not all 44 available tables are used.
     database: COVID19_EPIDEMIOLOGICAL_DATA
     schema: PUBLIC
     tables:
-      - name: ecdc_global
-        description: European CDC daily country-level cases/deaths.
-        columns:
-          - name: country_region
-          - name: date
-          - name: cases
-          - name: deaths
-      - name: owid_vaccinations
-        description: Our World in Data vaccination rollout by country/day.
-      - name: goog_global_mobility_report
-        description: >
-          Google mobility trends. Mixes country-level and sub-national
-          (province/state) rows in the same table -- staging model filters
-          to country-level only (province_state IS NULL).
       - name: jhu_covid_19
         description: >
-          Johns Hopkins global case counts (primary source). SCHEMA NOT YET
-          FULLY CONFIRMED against the live account as of this commit --
-          the staging model for this source is a pass-through pending
-          `DESCRIBE TABLE JHU_COVID_19` results.
-      - name: cdc_inpatient_beds_all
-        description: US hospital bed capacity.
+          Johns Hopkins global case counts (primary source). Long-format:
+          one row per (country/province/county, date, CASE_TYPE), CASE_TYPE
+          in {Confirmed, Deaths}, CASES is cumulative. Confirmed columns:
+          country_region, province_state, county, fips, date, case_type,
+          cases, long, lat, iso3166_1, iso3166_2, difference,
+          last_updated_date, last_reported_flag.
+      - name: owid_vaccinations
+        description: Our World in Data vaccination rollout by country/day.
+      - name: who_situation_reports
+        description: >
+          WHO's own cases/deaths, an independent cross-check against
+          JHU_COVID_19. Shorter date coverage (238 distinct report dates)
+          than JHU. Confirmed columns: country, total_cases, cases_new,
+          deaths, deaths_new, transmission_classification,
+          days_since_last_reported_case, iso3166_1, country_region, date,
+          situation_report_name, situation_report_url, last_update_date,
+          last_reported_flag.
+      - name: databank_demographics
+        description: >
+          Global, country-level demographics (216 rows -- confirmed via
+          sample rows to be country-level, unlike the similarly-named but
+          US-county-only DEMOGRAPHICS table). Columns: iso3166_1,
+          iso3166_2, fips, latitude, longitude, state, county,
+          total_population, total_male_population, total_female_population,
+          country_region.
 
   - name: bronze
     description: Our own Bronze-layer tables, loaded by the Python ETL scripts in etl/.
@@ -39,7 +46,9 @@ sources:
     tables:
       - name: country_indicators
         description: >
-          Country-level demographic/economic indicators from Our World in
-          Data, loaded by etl/augment_country_indicators.py. See that
-          script for why this augmentation exists (Marketplace's own
-          DEMOGRAPHICS table is US-county-level only).
+          Country-level economic/health-system indicators (GDP per capita,
+          median age, hospital beds per thousand, human development index,
+          etc.) from Our World in Data, loaded by
+          etl/augment_country_indicators.py. Population is deliberately
+          NOT included here -- it's already available natively via
+          databank_demographics above.
