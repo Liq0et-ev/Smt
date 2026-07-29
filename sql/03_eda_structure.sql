@@ -2,15 +2,52 @@
 -- Task 2 (part A): SQL-based structural EDA on the Marketplace dataset.
 -- Run in Snowsight against COVID19_EPIDEMIOLOGICAL_DATA.PUBLIC.
 --
--- Table set: JHU_COVID_19, WHO_SITUATION_REPORTS, DATABANK_DEMOGRAPHICS,
--- OWID_VACCINATIONS (Option C / "lean" set -- see
--- docs/tasks/task1_marketplace_and_resource_monitors.md for why these
--- four instead of all 44 available tables).
+-- Two tiers, per the assignment's literal wording ("analyzing the
+-- Snowflake COVID-19 dataset ... to understand its structure, patterns,
+-- and gaps" -- the whole dataset, not just the tables we build on):
+--   TIER 1 (this file, section 0): a broad landscape survey across ALL
+--     44 tables in the Marketplace share -- size, shape, and which ones
+--     even have a time dimension. Metadata-only, effectively free to run.
+--   TIER 2 (this file, sections 1+, and eda/automated_eda.py): a deep
+--     dive on the 4 core tables actually used downstream (JHU_COVID_19,
+--     WHO_SITUATION_REPORTS, DATABANK_DEMOGRAPHICS, OWID_VACCINATIONS --
+--     Option C / "lean" set, see
+--     docs/tasks/task1_marketplace_and_resource_monitors.md for why
+--     these four).
 -- =====================================================================
 
 USE WAREHOUSE COVID_WH;
 USE DATABASE COVID19_EPIDEMIOLOGICAL_DATA;
 USE SCHEMA PUBLIC;
+
+-- ---------------------------------------------------------------------
+-- 0) TIER 1: broad landscape survey of ALL 44 tables in the share.
+--    Pure metadata (INFORMATION_SCHEMA.TABLES.ROW_COUNT/BYTES are
+--    maintained by Snowflake, not computed by scanning data), so this
+--    costs essentially nothing to run regardless of how large the
+--    underlying tables are.
+-- ---------------------------------------------------------------------
+SELECT
+    t.table_name,
+    t.row_count,
+    ROUND(t.bytes / 1024 / 1024, 1)                    AS size_mb,
+    (SELECT COUNT(*) FROM information_schema.columns c
+     WHERE c.table_schema = t.table_schema AND c.table_name = t.table_name) AS column_count,
+    t.comment
+FROM information_schema.tables t
+WHERE t.table_schema = 'PUBLIC'
+ORDER BY t.row_count DESC;
+
+-- Which of the 44 tables even have a date/timestamp column (i.e. are
+-- candidates for time-series analysis vs. static reference tables)?
+SELECT
+    c.table_name,
+    LISTAGG(c.column_name, ', ') WITHIN GROUP (ORDER BY c.ordinal_position) AS date_columns
+FROM information_schema.columns c
+WHERE c.table_schema = 'PUBLIC'
+  AND c.data_type IN ('DATE', 'TIMESTAMP_NTZ', 'TIMESTAMP_LTZ', 'TIMESTAMP_TZ')
+GROUP BY c.table_name
+ORDER BY c.table_name;
 
 -- ---------------------------------------------------------------------
 -- 1) JHU_COVID_19: coverage, granularity, and CASE_TYPE breakdown

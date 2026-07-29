@@ -1,11 +1,37 @@
 # Task 2 — Data Exploration and Enhancement
 
+## Two-tier EDA strategy
+
+The task says to analyze "the Snowflake COVID-19 dataset" (the whole
+44-table share), but building the full pipeline (dbt, API, dashboard) on
+all 44 isn't necessary or comfortable to fully own end to end (see the
+Option A/B/C discussion in `docs/tasks/task1_marketplace_and_resource_monitors.md`).
+So EDA is split into two tiers:
+
+- **Tier 1 — broad landscape survey, all 44 tables.** Cheap, metadata-driven:
+  row counts/size/column counts for every table
+  ([`sql/03_eda_structure.sql`](../../sql/03_eda_structure.sql) section 0,
+  pure SQL against `INFORMATION_SCHEMA`), plus a Python pass
+  ([`eda/automated_eda.py`](../../eda/automated_eda.py) `--survey`) that
+  finds each table's date column (if any) and computes its actual date
+  range — this is the part plain static SQL can't do cleanly, since every
+  table names its date column differently, so it needs a loop. Answers
+  "structure and patterns" at the whole-dataset level without the cost of
+  deep-profiling 44 tables including several multi-million-row ones.
+- **Tier 2 — deep dive, the 4 core tables.** Full structural EDA
+  (duplicates, nulls, gaps, cross-source consistency —
+  `sql/03_eda_structure.sql` sections 1+) and visual profiling
+  (`eda/automated_eda.py --all`, ydata-profiling HTML reports) on the
+  tables the actual pipeline (dbt, API, dashboard) is built on:
+  `JHU_COVID_19`, `WHO_SITUATION_REPORTS`, `OWID_VACCINATIONS`,
+  `DATABANK_DEMOGRAPHICS`.
+
 ## What this task delivers
 
 1. **SQL-based EDA** ([`sql/03_eda_structure.sql`](../../sql/03_eda_structure.sql))
-   — structure, coverage, duplicates, missing-date gaps, and cross-table
-   consistency checks run directly in Snowflake (server-side, no data
-   pulled out).
+   — Tier 1 landscape survey plus Tier 2 structure, coverage, duplicates,
+   missing-date gaps, and cross-table consistency checks, run directly in
+   Snowflake (server-side, no data pulled out).
 2. **Python + Snowflake augmentation (Bronze layer)**
    ([`etl/augment_country_indicators.py`](../../etl/augment_country_indicators.py))
    — enriches the dataset with country-level demographic/economic
@@ -63,9 +89,14 @@ cp .env.example .env
 
 1. **SQL EDA first** — open [`sql/03_eda_structure.sql`](../../sql/03_eda_structure.sql)
    in a Snowsight worksheet and run it (select all → run) to see the
-   duplicate/gap/cross-check results against the live account (schemas for
-   all four core tables are already confirmed and built into the dbt
-   staging models).
+   Tier 1 landscape survey plus the Tier 2 duplicate/gap/cross-check
+   results against the live account (schemas for all four core tables are
+   already confirmed and built into the dbt staging models).
+1b. **Tier 1 Python survey** (all 44 tables' date ranges):
+   ```bash
+   python -m eda.automated_eda --survey
+   ```
+   Writes `reports/eda/dataset_survey.csv`.
 2. **Augment with external data (Bronze)**:
    ```bash
    python -m etl.augment_country_indicators
