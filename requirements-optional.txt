@@ -1,0 +1,9 @@
+# Optional extras. Install with:
+#   pip install -r requirements-optional.txt
+# Requires Python < 3.13 as of this commit (ydata-profiling's dependency
+# chain, e.g. numba/llvmlite, doesn't yet support newer Python versions).
+# If you're on Python 3.13+, skip this file -- eda/automated_eda.py's
+# --survey and --structure-only modes work fine without it; only the
+# visual HTML report generation needs ydata-profiling.
+
+ydata-profiling==4.12.1

@@ -110,12 +110,24 @@ cp .env.example .env
    export DBT_PROFILES_DIR=$(pwd)
    dbt deps && dbt run && dbt test
    ```
-4. **Automated EDA**:
+4. **Automated EDA (Tier 2, structural summaries only, no extra install needed)**:
    ```bash
-   python -m eda.automated_eda --all
+   python -m eda.automated_eda --all --structure-only
    ```
-   Produces one HTML report per core table under `reports/eda/`, plus
-   printed structural summaries in the terminal.
+   Prints per-table null/distinct/min-max summaries in the terminal.
+5. **Optional: visual HTML profiling reports** — needs `ydata-profiling`,
+   which is a separate optional dependency (`requirements-optional.txt`)
+   because its dependency chain (numba/llvmlite) lags support for very new
+   Python versions (e.g. not yet compatible with Python 3.14). If your
+   Python is < 3.13:
+   ```bash
+   pip install -r requirements-optional.txt
+   python -m eda.automated_eda --all   # now also writes HTML reports to reports/eda/
+   ```
+   If you're on a newer Python and don't want to manage a second
+   interpreter just for this, skip it — the structural summaries from
+   step 4 already cover the null/distinct/gap analysis; the HTML reports
+   only add distribution charts and a correlation matrix on top.
 
 ## Insights (filled in after running against real data)
 

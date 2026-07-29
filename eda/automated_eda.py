@@ -31,7 +31,6 @@ import logging
 from pathlib import Path
 
 import pandas as pd
-from ydata_profiling import ProfileReport
 
 from common.snowflake_client import query_to_dataframe
 
@@ -154,7 +153,20 @@ def sql_profile_summary(table_fqn: str):
 def generate_visual_report(table_fqn: str, sample_rows: int = 20_000) -> Path:
     """Pull a bounded, server-side random sample and run ydata-profiling
     on it -- gives distribution/correlation visuals without ever loading
-    a full multi-million-row table into memory."""
+    a full multi-million-row table into memory.
+
+    ydata-profiling is an optional dependency (see requirements-optional.txt)
+    -- imported here, not at module level, so --survey/--structure-only
+    keep working on Python versions it doesn't support yet."""
+    try:
+        from ydata_profiling import ProfileReport
+    except ImportError as e:
+        raise ImportError(
+            "ydata-profiling isn't installed. Install it with "
+            "`pip install -r requirements-optional.txt` (requires Python < 3.13), "
+            "or run with --structure-only to skip visual reports."
+        ) from e
+
     database, schema, table = _split_table_fqn(table_fqn)
     logger.info("Sampling %d rows from %s for visual profiling", sample_rows, table_fqn)
     df = query_to_dataframe(f"SELECT * FROM {table_fqn} SAMPLE ({sample_rows} ROWS)")
