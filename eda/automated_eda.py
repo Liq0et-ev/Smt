@@ -32,7 +32,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from common.snowflake_client import query_to_dataframe
+from common.snowflake_client import get_connection, query_to_dataframe
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -67,47 +67,52 @@ def survey_all_tables(
     free) and, for the first date/timestamp column found (if any), the
     actual min/max date range -- computed with one small generated query
     per table, since date column names differ across tables and can't be
-    covered by a single static query."""
-    tables_df = query_to_dataframe(
-        f"""
-        SELECT table_name, row_count, bytes, comment
-        FROM {database}.INFORMATION_SCHEMA.TABLES
-        WHERE table_schema = '{schema}'
-        ORDER BY row_count DESC
-        """
-    )
+    covered by a single static query. Reuses a single connection for all
+    ~44+ queries instead of opening a new one per table."""
+    with get_connection() as conn:
+        tables_df = query_to_dataframe(
+            f"""
+            SELECT table_name, row_count, bytes, comment
+            FROM {database}.INFORMATION_SCHEMA.TABLES
+            WHERE table_schema = '{schema}'
+            ORDER BY row_count DESC
+            """,
+            conn=conn,
+        )
 
-    columns_df = query_to_dataframe(
-        f"""
-        SELECT table_name, column_name, data_type, ordinal_position
-        FROM {database}.INFORMATION_SCHEMA.COLUMNS
-        WHERE table_schema = '{schema}' AND data_type IN {DATE_TYPES}
-        QUALIFY ROW_NUMBER() OVER (PARTITION BY table_name ORDER BY ordinal_position) = 1
-        """
-    )
-    date_col_by_table = dict(zip(columns_df["TABLE_NAME"], columns_df["COLUMN_NAME"]))
+        columns_df = query_to_dataframe(
+            f"""
+            SELECT table_name, column_name, data_type, ordinal_position
+            FROM {database}.INFORMATION_SCHEMA.COLUMNS
+            WHERE table_schema = '{schema}' AND data_type IN {DATE_TYPES}
+            QUALIFY ROW_NUMBER() OVER (PARTITION BY table_name ORDER BY ordinal_position) = 1
+            """,
+            conn=conn,
+        )
+        date_col_by_table = dict(zip(columns_df["TABLE_NAME"], columns_df["COLUMN_NAME"]))
 
-    results = []
-    for _, row in tables_df.iterrows():
-        table = row["TABLE_NAME"]
-        record = {
-            "table_name": table,
-            "row_count": row["ROW_COUNT"],
-            "size_mb": round((row["BYTES"] or 0) / 1024 / 1024, 1),
-            "date_column": date_col_by_table.get(table),
-            "earliest_date": None,
-            "latest_date": None,
-        }
-        if table in date_col_by_table:
-            col = date_col_by_table[table]
-            logger.info("Scanning date range of %s.%s.%s", database, table, col)
-            range_df = query_to_dataframe(
-                f'SELECT MIN("{col}") AS MIN_DATE, MAX("{col}") AS MAX_DATE '
-                f'FROM {database}.{schema}."{table}"'
-            )
-            record["earliest_date"] = range_df["MIN_DATE"].iloc[0]
-            record["latest_date"] = range_df["MAX_DATE"].iloc[0]
-        results.append(record)
+        results = []
+        for _, row in tables_df.iterrows():
+            table = row["TABLE_NAME"]
+            record = {
+                "table_name": table,
+                "row_count": row["ROW_COUNT"],
+                "size_mb": round((row["BYTES"] or 0) / 1024 / 1024, 1),
+                "date_column": date_col_by_table.get(table),
+                "earliest_date": None,
+                "latest_date": None,
+            }
+            if table in date_col_by_table:
+                col = date_col_by_table[table]
+                logger.info("Scanning date range of %s.%s.%s", database, table, col)
+                range_df = query_to_dataframe(
+                    f'SELECT MIN("{col}") AS MIN_DATE, MAX("{col}") AS MAX_DATE '
+                    f'FROM {database}.{schema}."{table}"',
+                    conn=conn,
+                )
+                record["earliest_date"] = range_df["MIN_DATE"].iloc[0]
+                record["latest_date"] = range_df["MAX_DATE"].iloc[0]
+            results.append(record)
 
     survey_df = pd.DataFrame(results)
     REPORTS_DIR.mkdir(parents=True, exist_ok=True)
