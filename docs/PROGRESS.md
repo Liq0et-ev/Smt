@@ -2,7 +2,7 @@
 
 - [x] Task 1 — Snowflake Marketplace dataset + Resource Monitors (`COVID19_EPIDEMIOLOGICAL_DATA`, 44 tables acquired; `COVID_WH_MONITOR` created and attached to `COVID_WH`; Bronze/Silver/Gold schemas)
 - [~] Task 2 — Data Exploration and Enhancement — SQL EDA, Python augmentation, and dbt project all written and pushed; **blocked on verifying against live data** by a Snowflake Python-connector auth issue (works fine in Snowsight/browser, fails from the Python connector -- likely a network policy; see `docs/tasks/task2_data_exploration_and_enhancement.md`)
-- [x] Task 3 — NoSQL (MongoDB) schema design — collections, validators, indexes, docs written; runs entirely via local Docker, independent of the Task 2 blocker
+- [x] Task 3 — NoSQL (MongoDB) schema design — **verified**: `docker compose up -d mongo` + `python -m mongo.init_collections` run successfully, all three collections (`annotations`, `supplementary_sources`, `user_preferences`) created with validators and indexes; independent of the Task 2 blocker
 - [ ] Task 4 — API development (FastAPI) — not started
 - [ ] Task 5 — Interactive visualization (Dash/Plotly) + annotations bonus — not started
 - [ ] Task 6 — Forecasting + clustering bonus — not started
