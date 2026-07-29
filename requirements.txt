@@ -9,6 +9,9 @@ pandas==2.2.3
 requests==2.32.3
 python-dotenv==1.0.1
 
+# --- NoSQL (Task 3) ---
+pymongo==4.10.1
+
 # Optional, heavier dependencies (visual EDA reports, etc.) live in
 # requirements-optional.txt -- kept separate because ydata-profiling's
 # dependency chain (numba/llvmlite) tends to lag support for brand-new

@@ -1,0 +1,21 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: covid_platform_mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+# api, dashboard, and mongo-express services are added in Task 10 once
+# the backend/dashboard code lands -- kept minimal here so Task 3 can be
+# run/tested on its own first.
+
+volumes:
+  mongo-data:

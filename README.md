@@ -73,11 +73,45 @@ for full write-up (including the full 44-table inventory). Summary:
    pre-existing account-level monitors (`DAILY_MONITORING`,
    `MONTHLY_MONITORING`).
 
-## Task 2 — Data Exploration and Enhancement (in progress)
+## Task 2 — Data Exploration and Enhancement (code complete, live run pending)
 
 See [`docs/tasks/task2_data_exploration_and_enhancement.md`](docs/tasks/task2_data_exploration_and_enhancement.md).
 SQL-based EDA, Python augmentation into Bronze, dbt transformation into
-Silver/Gold, and an automated EDA profiler.
+Silver/Gold, and an automated EDA profiler. All code is written and pushed;
+running it end-to-end against the live account is currently blocked by a
+Snowflake **Python connector** authentication issue (Snowsight/browser
+access works fine — this is specific to connecting from Python/dbt, most
+likely an account network policy). The SQL-only parts of this task
+(`sql/03_eda_structure.sql`) can and should still be run directly in
+Snowsight in the meantime.
 
-Further setup/deployment instructions (Docker Compose, env vars, running the
-API/dashboard) will be added here as those pieces land.
+## Task 3 — NoSQL (MongoDB) schema design ✅
+
+See [`docs/tasks/task3_mongodb_schema.md`](docs/tasks/task3_mongodb_schema.md).
+Three collections (`annotations`, `supplementary_sources`,
+`user_preferences`) with `$jsonSchema` validators and indexes
+([`mongo/init_collections.py`](mongo/init_collections.py)), plus a CRUD
+helper ([`mongo/client.py`](mongo/client.py)) the API (Task 4) will reuse.
+Runs entirely via local Docker (`docker-compose.yml`) — no dependency on
+Snowflake or the Task 2 connector issue.
+
+## Task 7 — Snowflake Performance Optimization ✅
+
+See [`docs/tasks/task7_performance_optimization.md`](docs/tasks/task7_performance_optimization.md).
+Self-contained SQL ([`sql/05_performance_optimization.sql`](sql/05_performance_optimization.sql))
+runnable directly in Snowsight: builds a pre-pivoted country-level copy of
+`JHU_COVID_19` (since the Marketplace share itself is read-only and can't
+be altered), adds a clustering key on `(ISO_CODE, REPORT_DATE)`, and a
+materialized view for a common dashboard aggregate — with before/after
+query profiling to demonstrate the effect.
+
+## Task 9 — Pattern Recognition (`MATCH_RECOGNIZE`) ✅
+
+See [`docs/tasks/task9_pattern_recognition.md`](docs/tasks/task9_pattern_recognition.md).
+Self-contained SQL ([`sql/06_pattern_recognition_match_recognize.sql`](sql/06_pattern_recognition_match_recognize.sql))
+runnable directly in Snowsight: automatic per-country "wave" detection
+(sustained rise then fall in smoothed daily new cases) and rapid-growth
+surge detection, both via `MATCH_RECOGNIZE`.
+
+Further setup/deployment instructions (env vars, running the API/dashboard)
+will be added here as those pieces land.
