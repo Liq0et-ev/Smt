@@ -79,7 +79,7 @@ def fetch_country_indicators() -> pd.DataFrame:
     # like 'OWID_WRL', 'OWID_EUR') which have no ISO-3166 country code and
     # would break a country-level join -- drop them.
     df = df[~df["iso_code"].str.startswith("OWID_", na=True)]
-    df = df.dropna(subset=["iso_code"])
+    df = df.dropna(subset=["iso_code"]).reset_index(drop=True)
 
     logger.info("Fetched %d country-level indicator rows", len(df))
     return df
