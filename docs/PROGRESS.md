@@ -1,7 +1,7 @@
 # Assignment progress checklist
 
 - [x] Task 1 — Snowflake Marketplace dataset + Resource Monitors (`COVID19_EPIDEMIOLOGICAL_DATA`, 44 tables acquired; `COVID_WH_MONITOR` created and attached to `COVID_WH`; Bronze/Silver/Gold schemas)
-- [~] Task 2 — Data Exploration and Enhancement — SQL EDA, Python augmentation, and dbt project all written and pushed. **Python connector auth resolved** (switched to key-pair auth with explicit `authenticator="SNOWFLAKE_JWT"` -- see `docs/tasks/task2_data_exploration_and_enhancement.md`); Tier 1 survey verified against all 43 live tables. Bronze augmentation + `dbt run`/`dbt test` still to be run against live data to fully close this out.
+- [x] Task 2 — Data Exploration and Enhancement — **fully verified end-to-end**: SQL EDA, Tier 1 survey (43 tables), Bronze augmentation (234 country indicators), and `dbt run`/`dbt test` (7/7 models, 18/18 tests passing) all run successfully against live data. Python connector auth resolved (key-pair + explicit `authenticator="SNOWFLAKE_JWT"`); two real data-quality issues found by testing on live data (duplicate demographics row, name-spelling duplicates in JHU/OWID) were fixed at the source -- see `docs/tasks/task2_data_exploration_and_enhancement.md`
 - [x] Task 3 — NoSQL (MongoDB) schema design — **verified**: `docker compose up -d mongo` + `python -m mongo.init_collections` run successfully, all three collections (`annotations`, `supplementary_sources`, `user_preferences`) created with validators and indexes; independent of the Task 2 blocker
 - [ ] Task 4 — API development (FastAPI) — not started
 - [ ] Task 5 — Interactive visualization (Dash/Plotly) + annotations bonus — not started

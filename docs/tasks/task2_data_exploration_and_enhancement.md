@@ -1,4 +1,12 @@
-# Task 2 — Data Exploration and Enhancement
+# Task 2 — Data Exploration and Enhancement ✅
+
+**Status: fully complete and verified against live data.** `dbt run`:
+7/7 models built successfully (5 Silver views + 2 Gold tables). `dbt
+test`: 18/18 tests passing. Bronze augmentation, EDA survey, and the
+full Silver/Gold pipeline all confirmed working end-to-end -- see
+"Authentication" and "Resolution" sections below for how the earlier
+Python-connector blocker was solved, and "Data-quality fixes found by
+testing on live data" for two real issues this process surfaced and fixed.
 
 ## Two-tier EDA strategy
 
@@ -159,6 +167,36 @@ March 2023 -- longer than initially assumed -- while `ECDC_GLOBAL` and
 (2020 only), reinforcing why `JHU_COVID_19` is the right primary source
 for this project rather than those two.
 
+## Data-quality fixes found by testing on live data
+
+Running `dbt test` against the real, live-loaded tables (not just
+reasoning about the schema in the abstract) surfaced two genuine data
+issues, exactly the kind of thing Task 2 asks EDA to find:
+
+1. **`DATABANK_DEMOGRAPHICS` has one duplicate country code** in the raw
+   Marketplace table — `unique_stg_databank_demographics_iso_code`
+   failed with 1 row. Fixed with a defensive `QUALIFY ROW_NUMBER()`
+   dedup in `stg_databank_demographics.sql` rather than assuming the
+   source is clean.
+2. **`JHU_COVID_19` and `OWID_VACCINATIONS` both have rows where the
+   same country/date appears more than once under slightly different
+   name spellings** (and `JHU_COVID_19` additionally has non-country
+   entries — cruise ships, Olympics-related rows — with no ISO code at
+   all). The original staging models grouped by
+   `(iso_code, country_name, date)`, so these variants produced separate
+   output rows instead of collapsing into one. This didn't show up until
+   testing against real data — 1088 duplicate rows in `stg_jhu_covid_19`
+   and a further 691 duplicate rows in the Gold mart (`country_daily_enriched`,
+   via a join fan-out from the vaccinations side) before the fix. Fixed
+   by grouping on `(iso_code, date)` only and aggregating `country_name`
+   with `MAX()` instead of grouping on it, plus excluding null-ISO-code
+   rows in JHU.
+
+Both fixes are a good illustration of why "test on live data" matters —
+the schema/logic looked correct on paper and would have looked correct
+against a handful of manually-inspected sample rows, but only broke
+down at full scale where name-spelling inconsistencies actually appear.
+
 ## How to run this (on your machine, against your Snowflake account)
 
 ```bash
@@ -213,9 +251,34 @@ cp .env.example .env
    step 4 already cover the null/distinct/gap analysis; the HTML reports
    only add distribution charts and a correlation matrix on top.
 
-## Insights (filled in after running against real data)
+## Insights
 
-_To be completed once the EDA/augmentation/dbt pipeline has run against the
-live account — will summarize case/death/vaccination patterns, data
-quality gaps found, and correlations between demographic/economic
-indicators and outcomes, for the final report._
+**Structural/coverage findings** (from the Tier 1/Tier 2 EDA, confirmed
+against live data):
+- `JHU_COVID_19` is the right primary source: it covers nearly the full
+  pandemic period (2020-01-22 to 2023-03-09), far longer than `ECDC_GLOBAL`
+  (cuts off 2020-12-14) or `WHO_SITUATION_REPORTS` (2020-03-02 to
+  2020-08-09 only) — those two are genuinely short-window
+  cross-checks, not viable primary sources.
+- The Marketplace's own `DEMOGRAPHICS` table is US-county-only;
+  `DATABANK_DEMOGRAPHICS` (216 rows, one per country) is the real global
+  population source, which is why the Python augmentation
+  (`etl/augment_country_indicators.py`) deliberately skips re-fetching
+  population and only adds genuinely missing indicators (median age,
+  GDP per capita, hospital beds per thousand, human development index).
+- `JHU_COVID_19` mixes long-format case-type rows with sub-national
+  breakdowns in one table, and contains entries with no ISO country code
+  at all (cruise ships, Olympics-related tracking) — both had to be
+  explicitly filtered out to get a clean one-row-per-(country, date) view.
+- Real-world data isn't as clean as a schema diagram suggests: both JHU
+  and OWID vaccination data contain the same country under multiple
+  name spellings on the same date, which silently produced duplicate
+  rows until caught by testing against live data with dbt (see above).
+
+**Task 9's pattern-recognition results** (`docs/tasks/task9_pattern_recognition.md`)
+belong here too for the final report: 416 distinct COVID "waves"
+detected across all countries via `MATCH_RECOGNIZE`, and the
+surge-detection query independently rediscovered the real global
+Omicron wave window (Dec 2021 – Mar 2022) purely from the shape of the
+case-count series, without being told when it happened — a genuinely
+validating result for the whole EDA/pattern-recognition approach.
