@@ -8,6 +8,7 @@ dbt-snowflake==1.9.1
 pandas==2.2.3
 requests==2.32.3
 python-dotenv==1.0.1
+pycountry==24.6.1
 
 # --- NoSQL (Task 3) ---
 pymongo==4.10.1

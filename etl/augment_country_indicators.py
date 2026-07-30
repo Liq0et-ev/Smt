@@ -23,6 +23,7 @@ Usage:
 import logging
 
 import pandas as pd
+import pycountry
 import requests
 
 from common.config import load_snowflake_config
@@ -71,6 +72,11 @@ INDICATOR_COLUMNS = [
 BRONZE_TABLE = "COUNTRY_INDICATORS"
 
 
+def _alpha3_to_alpha2(alpha_3: str) -> str | None:
+    country = pycountry.countries.get(alpha_3=alpha_3)
+    return country.alpha_2 if country else None
+
+
 def fetch_country_indicators() -> pd.DataFrame:
     logger.info("Downloading OWID country indicators from %s", OWID_LATEST_URL)
     df = pd.read_csv(OWID_LATEST_URL, usecols=INDICATOR_COLUMNS)
@@ -79,6 +85,18 @@ def fetch_country_indicators() -> pd.DataFrame:
     # like 'OWID_WRL', 'OWID_EUR') which have no ISO-3166 country code and
     # would break a country-level join -- drop them.
     df = df[~df["iso_code"].str.startswith("OWID_", na=True)]
+    df = df.dropna(subset=["iso_code"]).reset_index(drop=True)
+
+    # OWID's iso_code is ISO 3166-1 alpha-3 (e.g. "USA"), but every
+    # Marketplace table (JHU_COVID_19.ISO3166_1, OWID_VACCINATIONS,
+    # DATABANK_DEMOGRAPHICS) uses alpha-2 (e.g. "US") -- Starschema's
+    # convention, not OWID's. Converting here keeps alpha-2 iso_code a
+    # consistent invariant across every Bronze/Silver/Gold table, so the
+    # Gold mart's join (country_daily_enriched.sql) doesn't need a special
+    # case. A handful of OWID entries (e.g. some territories) have no
+    # ISO 3166-1 alpha-2 equivalent and are dropped rather than joined
+    # incorrectly.
+    df["iso_code"] = df["iso_code"].map(_alpha3_to_alpha2)
     df = df.dropna(subset=["iso_code"]).reset_index(drop=True)
 
     logger.info("Fetched %d country-level indicator rows", len(df))
