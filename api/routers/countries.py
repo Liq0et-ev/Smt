@@ -301,5 +301,17 @@ def get_country_forecast(
             periods=days,
         )
     except ValueError as e:
+        # Expected, well-understood failure: not enough recent history.
         raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        # statsmodels can raise other exception types (e.g. numerical/
+        # convergence errors) for degenerate series -- countries with
+        # near-constant or all-zero recent case counts, which is common
+        # for small/low-case countries. Surface as a clean 400 rather
+        # than an unhandled 500, since this is real, expected input
+        # variation, not a bug to crash on.
+        logger.warning("Forecast failed for %s: %s", iso_code, e)
+        raise HTTPException(
+            status_code=400, detail=f"Could not generate a forecast for '{iso_code}': {e}"
+        )
     return [ForecastRecord(**row) for row in forecast]

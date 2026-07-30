@@ -137,6 +137,18 @@ app.layout = html.Div(
 )
 
 
+def safe_fetch(fn, *args, default, **kwargs):
+    """Every chart on this page comes from a separate API call. One
+    country having odd/sparse data (e.g. a small country with a
+    near-constant case count breaking the forecast model) shouldn't blank
+    out the whole page -- just the one chart that couldn't load."""
+    try:
+        return fn(*args, **kwargs)
+    except Exception as e:
+        logger.warning("Dashboard fetch failed (%s, %s): %s", getattr(fn, "__name__", fn), args, e)
+        return default
+
+
 @app.callback(
     Output("summary-cards", "children"),
     Output("cases-deaths-graph", "figure"),
@@ -151,11 +163,11 @@ def update_country_view(iso_code, start_date, end_date):
     if not iso_code:
         return [], go.Figure(), go.Figure(), go.Figure(), go.Figure()
 
-    summary = api_client.get_summary(iso_code)
-    daily = api_client.get_daily(iso_code, start_date, end_date)
-    waves = api_client.get_waves(iso_code)
-    cross_check = api_client.get_cross_check(iso_code)
-    forecast = api_client.get_forecast(iso_code, days=30)
+    summary = safe_fetch(api_client.get_summary, iso_code, default=None)
+    daily = safe_fetch(api_client.get_daily, iso_code, start_date, end_date, default=[])
+    waves = safe_fetch(api_client.get_waves, iso_code, default=[])
+    cross_check = safe_fetch(api_client.get_cross_check, iso_code, default=[])
+    forecast = safe_fetch(api_client.get_forecast, iso_code, days=30, default=[])
 
     if summary:
         cfr = summary.get("latest_case_fatality_rate")
