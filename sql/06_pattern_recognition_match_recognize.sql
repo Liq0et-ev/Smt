@@ -9,6 +9,16 @@
 -- a sequence over time, row-to-row, which is exactly what
 -- MATCH_RECOGNIZE is for) but reads almost like plain English once
 -- written this way.
+--
+-- NOTE: standard row-pattern-matching SQL (and most engines that
+-- implement it, e.g. Oracle) use PREV()/NEXT() as the "previous/next
+-- row" navigation functions inside DEFINE. On this Snowflake account,
+-- PREV() compiled to "Unknown function" -- verified against Snowflake's
+-- own documented canonical example, not just this file, so it's a
+-- platform/account behavior, not a mistake in this query. LAG() (an
+-- ordinary window function) works as a drop-in replacement inside
+-- DEFINE -- Snowflake implicitly applies it over the MATCH_RECOGNIZE
+-- PARTITION BY/ORDER BY, the same way PREV() would.
 -- =====================================================================
 
 USE WAREHOUSE COVID_WH;
@@ -69,8 +79,8 @@ MATCH_RECOGNIZE (
     AFTER MATCH SKIP PAST LAST ROW
     PATTERN (UP{5,} DOWN{5,})
     DEFINE
-        UP   AS NEW_CASES_7D_AVG > PREV(NEW_CASES_7D_AVG),
-        DOWN AS NEW_CASES_7D_AVG <= PREV(NEW_CASES_7D_AVG)
+        UP   AS NEW_CASES_7D_AVG > LAG(NEW_CASES_7D_AVG),
+        DOWN AS NEW_CASES_7D_AVG <= LAG(NEW_CASES_7D_AVG)
 )
 ORDER BY ISO_CODE, WAVE_START;
 
@@ -121,6 +131,6 @@ MATCH_RECOGNIZE (
     AFTER MATCH SKIP PAST LAST ROW
     PATTERN (SURGE{3,})
     DEFINE
-        SURGE AS NEW_CASES_7D_AVG > 1.05 * PREV(NEW_CASES_7D_AVG)
+        SURGE AS NEW_CASES_7D_AVG > 1.05 * LAG(NEW_CASES_7D_AVG)
 )
 ORDER BY ISO_CODE, SURGE_START;

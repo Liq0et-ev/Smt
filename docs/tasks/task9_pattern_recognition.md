@@ -12,6 +12,19 @@ point) is built exactly for this: define row "symbols" based on
 conditions relative to neighboring rows, then match sequences of those
 symbols like a regular expression over rows instead of characters.
 
+## Platform note: `PREV()` vs. `LAG()`
+
+Standard row-pattern-matching SQL (and most engines that implement it,
+e.g. Oracle) use `PREV()`/`NEXT()` as the "previous/next row" navigation
+functions inside `DEFINE`. On this Snowflake account, `PREV()` compiled
+to `Unknown function` — verified against Snowflake's own documented
+canonical example (a stock-price up/down pattern), not just this
+project's query, confirming it's an account/platform behavior rather
+than a mistake in the SQL. `LAG()` (an ordinary window function) works
+as a drop-in replacement inside `DEFINE` — Snowflake implicitly applies
+it over the `MATCH_RECOGNIZE` `PARTITION BY`/`ORDER BY`, the same way
+`PREV()` would in the standard syntax.
+
 ## What was built
 
 Both in [`sql/06_pattern_recognition_match_recognize.sql`](../../sql/06_pattern_recognition_match_recognize.sql),
@@ -26,8 +39,8 @@ noise, which would otherwise register as dozens of fake single-day
 ```sql
 PATTERN (UP{5,} DOWN{5,})
 DEFINE
-    UP   AS NEW_CASES_7D_AVG > PREV(NEW_CASES_7D_AVG),
-    DOWN AS NEW_CASES_7D_AVG <= PREV(NEW_CASES_7D_AVG)
+    UP   AS NEW_CASES_7D_AVG > LAG(NEW_CASES_7D_AVG),
+    DOWN AS NEW_CASES_7D_AVG <= LAG(NEW_CASES_7D_AVG)
 ```
 
 Reads almost like English: "5 or more rising days, immediately followed
@@ -46,7 +59,7 @@ greater-than comparisons:
 ```sql
 PATTERN (SURGE{3,})
 DEFINE
-    SURGE AS NEW_CASES_7D_AVG > 1.05 * PREV(NEW_CASES_7D_AVG)
+    SURGE AS NEW_CASES_7D_AVG > 1.05 * LAG(NEW_CASES_7D_AVG)
 ```
 
 3+ consecutive days of >5% day-over-day growth in the smoothed series —
