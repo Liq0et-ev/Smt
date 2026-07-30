@@ -110,7 +110,7 @@ plus one documented, unresolved limitation (state-reported countries'
 case/death totals are undercounts). Run with
 `uvicorn api.main:app --reload` or `docker compose up -d --build`.
 
-## Task 5 — Interactive Visualization Dashboard (Dash/Plotly)
+## Task 5 — Interactive Visualization Dashboard (Dash/Plotly) ✅
 
 See [`docs/tasks/task5_dashboard.md`](docs/tasks/task5_dashboard.md).
 A single-page Dash app -- country picker, summary stat cards, a
@@ -118,9 +118,12 @@ cases/deaths chart with Task 9's detected waves shaded on top, a
 forecast chart (Task 6), a vaccination progress chart, the JHU-vs-WHO
 cross-check chart, and (bonus) an annotations panel backed by MongoDB.
 Talks only to the FastAPI backend over HTTP, never to Snowflake/MongoDB
-directly. All callbacks verified with mocked API responses before
-running live. Run with `python -m dashboard.app` (needs the API running
-separately) or `docker compose up -d --build`.
+directly. **Verified against the live API and MongoDB** -- live testing
+found and fixed a MongoDB schema-validation bug in the annotations
+write path and a dashboard resilience gap (one failing API call used to
+blank the whole page; now isolated per-chart). Run with
+`python -m dashboard.app` (needs the API running separately) or
+`docker compose up -d --build`.
 
 ## Task 6 — Forecasting ✅
 
