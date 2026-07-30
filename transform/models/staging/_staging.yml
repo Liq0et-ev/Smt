@@ -23,7 +23,7 @@ models:
             combination_of_columns: [iso_code, report_date]
 
   - name: stg_owid_vaccinations
-    description: Silver-layer cleaned vaccination rollout by country/day.
+    description: Silver-layer cleaned vaccination rollout by (iso_code, date).
     columns:
       - name: country_name
         tests: [not_null]
@@ -32,7 +32,7 @@ models:
     tests:
       - dbt_utils.unique_combination_of_columns:
           arguments:
-            combination_of_columns: [country_name, report_date]
+            combination_of_columns: [iso_code, report_date]
 
   - name: stg_who_situation_reports
     description: >
