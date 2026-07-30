@@ -40,20 +40,26 @@ def list_annotations(iso_code: str, metric: str | None = None):
 
 @router.post("", response_model=Annotation, status_code=201)
 def create_annotation(iso_code: str, body: AnnotationCreate):
-    """Task 5 bonus: store a user annotation/comment on a data point."""
+    """Task 5 bonus: store a user annotation/comment on a data point.
+
+    The MongoDB $jsonSchema validator (mongo/init_collections.py) types
+    country_name/author as plain "string" (not nullable, unlike date/
+    updated_at which explicitly allow null) -- so these two optional
+    fields must be omitted entirely when not provided, not included as
+    None/null, or the validator correctly rejects the insert."""
+    scope = {"iso_code": iso_code.upper(), "metric": body.metric, "date": body.date}
+    if body.country_name is not None:
+        scope["country_name"] = body.country_name
+
     doc = {
-        "scope": {
-            "iso_code": iso_code.upper(),
-            "country_name": body.country_name,
-            "metric": body.metric,
-            "date": body.date,
-        },
+        "scope": scope,
         "comment": body.comment,
-        "author": body.author,
         "tags": body.tags,
         "created_at": datetime.now(timezone.utc),
         "updated_at": None,
     }
+    if body.author is not None:
+        doc["author"] = body.author
 
     config = load_mongo_config()
     with get_client(config) as client:
