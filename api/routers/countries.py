@@ -86,32 +86,52 @@ def get_country_summary(iso_code: str):
     """On-the-fly aggregation (Task 4 requirement): the latest known
     totals/rates for a country, computed per request rather than stored
     -- a small enough query to run live instead of needing a
-    pre-materialized "latest" table."""
+    pre-materialized "latest" table.
+
+    Deliberately MAX()s each cumulative metric independently rather than
+    picking "the row for the most recent date": JHU's own data collection
+    wound down through early 2023, so on the actual last date in the
+    dataset only a handful of countries/regions still had a row at all --
+    picking that exact row understated cumulative totals by orders of
+    magnitude for countries reported at state/province granularity (e.g.
+    the US). Since confirmed_cases/deaths are non-decreasing cumulative
+    counts, the highest value ever recorded is the correct "latest known
+    total," robust to which specific rows are sparse near the end."""
     df = query_to_dataframe(
         f"""
-        SELECT ISO_CODE, COUNTRY_NAME, REPORT_DATE, TOTAL_POPULATION,
-               CONFIRMED_CASES, CONFIRMED_DEATHS, CASE_FATALITY_RATE,
-               PEOPLE_FULLY_VACCINATED_PER_HUNDRED, MEDIAN_AGE, GDP_PER_CAPITA,
-               HUMAN_DEVELOPMENT_INDEX
+        SELECT
+            ISO_CODE,
+            MAX(COUNTRY_NAME) AS COUNTRY_NAME,
+            MAX(REPORT_DATE) AS LATEST_DATE,
+            MAX(TOTAL_POPULATION) AS TOTAL_POPULATION,
+            MAX(CONFIRMED_CASES) AS LATEST_CONFIRMED_CASES,
+            MAX(CONFIRMED_DEATHS) AS LATEST_CONFIRMED_DEATHS,
+            MAX(PEOPLE_FULLY_VACCINATED_PER_HUNDRED) AS LATEST_PEOPLE_FULLY_VACCINATED_PER_HUNDRED,
+            MAX(MEDIAN_AGE) AS MEDIAN_AGE,
+            MAX(GDP_PER_CAPITA) AS GDP_PER_CAPITA,
+            MAX(HUMAN_DEVELOPMENT_INDEX) AS HUMAN_DEVELOPMENT_INDEX
         FROM {GOLD}.COUNTRY_DAILY_ENRICHED
-        WHERE ISO_CODE = %(iso_code)s AND CONFIRMED_CASES IS NOT NULL
-        ORDER BY REPORT_DATE DESC
-        LIMIT 1
+        WHERE ISO_CODE = %(iso_code)s
+        GROUP BY ISO_CODE
         """,
         params={"iso_code": iso_code.upper()},
     )
-    if df.empty:
+    if df.empty or df.iloc[0].LATEST_CONFIRMED_CASES is None:
         raise HTTPException(status_code=404, detail=f"No data for country '{iso_code}'")
     r = df.iloc[0]
+    case_fatality_rate = (
+        r.LATEST_CONFIRMED_DEATHS / r.LATEST_CONFIRMED_CASES
+        if r.LATEST_CONFIRMED_CASES else None
+    )
     return CountrySummary(
         iso_code=r.ISO_CODE,
         country_name=r.COUNTRY_NAME,
-        latest_date=r.REPORT_DATE,
+        latest_date=r.LATEST_DATE,
         total_population=r.TOTAL_POPULATION,
-        latest_confirmed_cases=r.CONFIRMED_CASES,
-        latest_confirmed_deaths=r.CONFIRMED_DEATHS,
-        latest_case_fatality_rate=r.CASE_FATALITY_RATE,
-        latest_people_fully_vaccinated_per_hundred=r.PEOPLE_FULLY_VACCINATED_PER_HUNDRED,
+        latest_confirmed_cases=r.LATEST_CONFIRMED_CASES,
+        latest_confirmed_deaths=r.LATEST_CONFIRMED_DEATHS,
+        latest_case_fatality_rate=case_fatality_rate,
+        latest_people_fully_vaccinated_per_hundred=r.LATEST_PEOPLE_FULLY_VACCINATED_PER_HUNDRED,
         median_age=r.MEDIAN_AGE,
         gdp_per_capita=r.GDP_PER_CAPITA,
         human_development_index=r.HUMAN_DEVELOPMENT_INDEX,
