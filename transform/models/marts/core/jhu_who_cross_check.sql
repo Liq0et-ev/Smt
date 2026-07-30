@@ -2,8 +2,7 @@
 -- WHO_SITUATION_REPORTS actually agree on cases/deaths for the same
 -- country and date? Two independent sources rarely match exactly; this
 -- quantifies the gap rather than assuming one source is "correct" --
--- directly useful for the Task 2 "understand gaps" requirement and for
--- the final report's discussion of data quality/reliability.
+-- directly useful for the Task 2
 
 with jhu as (
     select iso_code, country_name, report_date, confirmed_cases, confirmed_deaths
