@@ -1,20 +1,20 @@
--- Diagnostic for the /countries/US/summary anomaly found while testing the
--- API live: it returned latest_date = 2020-03-24 with confirmed_cases = 0,
--- instead of a recent date with a large cumulative count.
---
--- This is NOT about the ISO code bug (fixed separately in
--- etl/augment_country_indicators.py) -- this checks a different, real
--- possibility: JHU/CSSE is documented to have switched the US from a single
--- country-level row to per-state/county reporting partway through March
--- 2020. If true, the country-level "US" row (PROVINCE_STATE and COUNTY
--- both NULL) our staging model filters to may simply stop existing after
--- that date -- meaning stg_jhu_covid_19 has no real "latest" US row, and
--- the Gold mart is correctly reporting the last one that exists.
---
--- Run each block and check the results.
+/* Investigates the /countries/US/summary issue found during live API testing.
+The endpoint returned latest_date = 2020-03-24 with confirmed_cases = 0
+instead of recent cumulative data.
 
--- 1. Does a country-level ("PROVINCE_STATE"/"COUNTY" both NULL) 'US' row
---    exist for CASE_TYPE = 'Confirmed' beyond March 2020?
+This is NOT related to the ISO code bug (fixed separately in etl/augment_country_indicators.py). 
+Instead, it checks whether JHU/CSSE stopped publishing a country-level US record after switching to
+state/county reporting in March 2020.
+
+If the country-level "US" row (PROVINCE_STATE and COUNTY are NULL) no
+longer exists after that date, then stg_jhu_covid_19 has no newer US row,
+and the Gold mart is correctly returning the last available one.
+*/
+
+/*1.Check whether a country-level 'US' row
+(PROVINCE_STATE and COUNTY are both NULL)
+exists for CASE_TYPE = 'Confirmed' after March 2020.
+*/
 SELECT
     MIN(DATE) AS first_date,
     MAX(DATE) AS last_date,
@@ -25,8 +25,9 @@ WHERE ISO3166_1 = 'US'
   AND COUNTY IS NULL
   AND CASE_TYPE = 'Confirmed';
 
--- 2. If (1) shows a short/early date range, where does the US data
---    actually live after that date? (state-level rows, still under 'US')
+/*2.If not, check where the US data is stored after March 2020
+(e.g., state-level rows under 'US').
+*/
 SELECT
     MIN(DATE) AS first_date,
     MAX(DATE) AS last_date,
@@ -38,8 +39,11 @@ WHERE ISO3166_1 = 'US'
   AND COUNTY IS NULL
   AND CASE_TYPE = 'Confirmed';
 
--- 3. Sanity check: does the same pattern (country row stops early) show up
---    for OTHER countries, or is it US-specific? Pick a couple of others.
+/*3. Verify whether the same behavior (country-level rows ending early)
+occurs for other countries, or if it is specific to the US.
+Test with a few example countries.
+*/
+
 SELECT
     ISO3166_1,
     MIN(DATE) AS first_date,
@@ -53,11 +57,12 @@ WHERE ISO3166_1 IN ('DE', 'FR', 'IN', 'BR')
 GROUP BY ISO3166_1
 ORDER BY ISO3166_1;
 
--- 4. Both the "sum by date" and "sum of each state's own max" reconstructions
---    for the US topped out in the low hundreds of thousands, nowhere near
---    the real ~103 million total -- meaning CASES probably doesn't mean
---    what we assumed at state level. Look at the raw rows for one well-known
---    state (California) to see what's actually in there.
+/*4. Both the "sum by date" and "sum of each state's own max" reconstructions
+for the US topped out in the low hundreds of thousands, nowhere near
+the real 103 million total -- meaning CASES probably doesn't mean
+what we assumed at state level. Look at the raw rows for one well-known
+state (California) to see what's actually in there.
+*/
 SELECT DATE, PROVINCE_STATE, CASE_TYPE, CASES, DIFFERENCE
 FROM COVID19_EPIDEMIOLOGICAL_DATA.PUBLIC.JHU_COVID_19
 WHERE ISO3166_1 = 'US'
@@ -66,8 +71,10 @@ WHERE ISO3166_1 = 'US'
 ORDER BY DATE DESC
 LIMIT 30;
 
--- 5. And the highest CASES value ever recorded for California, so we know
---    the true ceiling of whatever this column represents there.
+/*5. Find the maximum CASES value ever recorded for California to determine
+the highest value this column reached and understand what it represents. 
+*/
+
 SELECT CASE_TYPE, MAX(CASES) AS MAX_CASES, COUNT(*) AS ROW_COUNT
 FROM COVID19_EPIDEMIOLOGICAL_DATA.PUBLIC.JHU_COVID_19
 WHERE ISO3166_1 = 'US'
