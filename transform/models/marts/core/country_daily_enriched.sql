@@ -3,11 +3,7 @@
 -- context joined together, plus derived population-adjusted metrics.
 --
 -- All joins are on ISO 3166-1 country code, not country name -- every
--- Option C source table carries iso_code natively (confirmed via Task 2
--- schema checks), so the fuzzy country-name-matching problem that would
--- otherwise show up (e.g. "United States" vs "US" across sources) doesn't
--- apply here.
-
+-- Option C source table carries iso_code natively 
 with cases as (
     select * from {{ ref('stg_jhu_covid_19') }}
 ),
