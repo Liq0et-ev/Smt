@@ -23,9 +23,15 @@ plotly==5.24.1
 
 # --- Forecasting (Task 6) ---
 statsmodels==0.14.4
+/*
+Optional and heavier dependencies (such as visual EDA reporting tools) are
+kept separately in requirements-optional.txt.
 
-# Optional, heavier dependencies (visual EDA reports, etc.) live in
-# requirements-optional.txt -- kept separate because ydata-profiling's
-# dependency chain (numba/llvmlite) tends to lag support for brand-new
-# Python versions (e.g. not yet compatible with 3.14 as of this commit).
-# The core project (Snowflake, dbt, ETL, API, dashboard) does not need it.
+They are not included in the main dependencies because packages like
+ydata-profiling and its dependency chain (numba/llvmlite) may not yet support
+the newest Python versions (for example, Python 3.14 at the time of this
+commit).
+
+The core project components, including Snowflake, dbt, ETL, API, and dashboard,
+do not require these optional packages.
+*/
