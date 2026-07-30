@@ -52,3 +52,25 @@ WHERE ISO3166_1 IN ('DE', 'FR', 'IN', 'BR')
   AND CASE_TYPE = 'Confirmed'
 GROUP BY ISO3166_1
 ORDER BY ISO3166_1;
+
+-- 4. Both the "sum by date" and "sum of each state's own max" reconstructions
+--    for the US topped out in the low hundreds of thousands, nowhere near
+--    the real ~103 million total -- meaning CASES probably doesn't mean
+--    what we assumed at state level. Look at the raw rows for one well-known
+--    state (California) to see what's actually in there.
+SELECT DATE, PROVINCE_STATE, CASE_TYPE, CASES, DIFFERENCE
+FROM COVID19_EPIDEMIOLOGICAL_DATA.PUBLIC.JHU_COVID_19
+WHERE ISO3166_1 = 'US'
+  AND PROVINCE_STATE = 'California'
+  AND COUNTY IS NULL
+ORDER BY DATE DESC
+LIMIT 30;
+
+-- 5. And the highest CASES value ever recorded for California, so we know
+--    the true ceiling of whatever this column represents there.
+SELECT CASE_TYPE, MAX(CASES) AS MAX_CASES, COUNT(*) AS ROW_COUNT
+FROM COVID19_EPIDEMIOLOGICAL_DATA.PUBLIC.JHU_COVID_19
+WHERE ISO3166_1 = 'US'
+  AND PROVINCE_STATE = 'California'
+  AND COUNTY IS NULL
+GROUP BY CASE_TYPE;
