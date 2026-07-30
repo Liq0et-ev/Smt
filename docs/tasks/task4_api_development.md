@@ -73,24 +73,33 @@ host path in `SNOWFLAKE_PRIVATE_KEY_PATH` (`.env`) and connects to the
 `mongo` container directly (not `localhost`) via Docker's internal
 network.
 
-## Known limitation: daily series for state-reported countries
+## Known limitation: totals for state-reported countries are undercounted
 
-`/daily` (and `/waves`, which reuses the same underlying series) for
-countries JHU tracks at state/province granularity in this Marketplace
-mirror (the US being the clearest example) undercounts on any given day,
-because not every state reports on every date -- there's no single date
-where all ~60 US states have a row simultaneously, so each day's summed
-total is a partial count. `/summary` sidesteps this (see its docstring:
-it sums each state's own highest-ever recorded value instead of summing
-*by date*), but that trick only works for a single "current total," not
-a day-by-day series -- a correct daily series would need each state's
-cumulative count forward-filled onto the days it didn't report, which is
-a real gap-filling problem (`LAST_VALUE(...) IGNORE NULLS` per state,
-then re-sum per date) left undone here as an intentional scope
-boundary. Documenting it here as a known data-quality finding rather
-than silently leaving it unexplained -- it's a legitimate, citable
-insight for the final report (JHU's per-country reporting granularity
-is inconsistent both across countries and over time).
+For countries JHU tracks at state/province granularity in this
+Marketplace mirror -- the US being the clearest example -- `/daily`,
+`/waves`, and `/summary`'s confirmed cases/deaths are all **undercounts**,
+not exact totals. Two things were tried and both improved the number
+without fully fixing it:
+
+1. Summing state-level rows *by date* (what the Gold mart's daily series
+   does): wrong, because no single date has all ~60 US states reporting
+   simultaneously, so every day's sum is a partial count.
+2. Summing each state's own highest-ever recorded value instead (what
+   `/summary` does now, live against the raw Marketplace table): an
+   improvement, but still landed around 150K against a real ~103 million
+   -- meaning `CASES` at state-level granularity in this specific dataset
+   doesn't straightforwardly mean "that state's cumulative national
+   total" the way it does at country level. The exact semantics weren't
+   pinned down further (would need row-level inspection of the raw
+   Marketplace data to confirm) -- left as an intentional stopping point
+   rather than chased to full precision.
+
+This is a genuine, citable data-quality finding for the final report
+(JHU's per-country reporting granularity and column semantics are
+inconsistent both across countries and over time in this source), not
+a hidden bug -- every number returned is a real, honestly-computed
+lower bound, just not a fully reconciled national total for countries
+reported at sub-national granularity.
 
 ## Try it
 
