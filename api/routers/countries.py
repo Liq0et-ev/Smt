@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/countries", tags=["countries"])
 
 GOLD = "COVID19_PLATFORM.GOLD"
+MARKETPLACE_JHU = "COVID19_EPIDEMIOLOGICAL_DATA.PUBLIC.JHU_COVID_19"
 
 
 @router.get("", response_model=list[Country])
@@ -85,27 +86,27 @@ def get_country_daily(
 def get_country_summary(iso_code: str):
     """On-the-fly aggregation (Task 4 requirement): the latest known
     totals/rates for a country, computed per request rather than stored
-    -- a small enough query to run live instead of needing a
-    pre-materialized "latest" table.
+    -- run live instead of needing a pre-materialized "latest" table.
 
-    Deliberately MAX()s each cumulative metric independently rather than
-    picking "the row for the most recent date": JHU's own data collection
-    wound down through early 2023, so on the actual last date in the
-    dataset only a handful of countries/regions still had a row at all --
-    picking that exact row understated cumulative totals by orders of
-    magnitude for countries reported at state/province granularity (e.g.
-    the US). Since confirmed_cases/deaths are non-decreasing cumulative
-    counts, the highest value ever recorded is the correct "latest known
-    total," robust to which specific rows are sparse near the end."""
-    df = query_to_dataframe(
+    Confirmed cases/deaths are reconstructed live from the raw Marketplace
+    table (not the Gold mart) by summing each state's own highest-ever
+    recorded cumulative count. Naively summing state rows *by date*
+    (what the Gold mart's daily series does, for countries -- like the
+    US -- reported at state granularity) badly undercounts, because not
+    every state reports on every date: no single day has all ~60 states
+    present at once, so every daily total is a partial sum. Taking each
+    state's own running max first, then summing those, sidesteps that --
+    it's correct regardless of which dates each state happened to report
+    on. Everything else (population, vaccination %, indicators) is static
+    or already synchronized per-country, so still comes from the Gold
+    mart."""
+    context_df = query_to_dataframe(
         f"""
         SELECT
             ISO_CODE,
             MAX(COUNTRY_NAME) AS COUNTRY_NAME,
             MAX(REPORT_DATE) AS LATEST_DATE,
             MAX(TOTAL_POPULATION) AS TOTAL_POPULATION,
-            MAX(CONFIRMED_CASES) AS LATEST_CONFIRMED_CASES,
-            MAX(CONFIRMED_DEATHS) AS LATEST_CONFIRMED_DEATHS,
             MAX(PEOPLE_FULLY_VACCINATED_PER_HUNDRED) AS LATEST_PEOPLE_FULLY_VACCINATED_PER_HUNDRED,
             MAX(MEDIAN_AGE) AS MEDIAN_AGE,
             MAX(GDP_PER_CAPITA) AS GDP_PER_CAPITA,
@@ -116,25 +117,57 @@ def get_country_summary(iso_code: str):
         """,
         params={"iso_code": iso_code.upper()},
     )
-    if df.empty or df.iloc[0].LATEST_CONFIRMED_CASES is None:
+    if context_df.empty:
         raise HTTPException(status_code=404, detail=f"No data for country '{iso_code}'")
-    r = df.iloc[0]
-    case_fatality_rate = (
-        r.LATEST_CONFIRMED_DEATHS / r.LATEST_CONFIRMED_CASES
-        if r.LATEST_CONFIRMED_CASES else None
+    ctx = context_df.iloc[0]
+
+    totals_df = query_to_dataframe(
+        f"""
+        WITH country_level AS (
+            SELECT
+                MAX(CASE WHEN CASE_TYPE = 'Confirmed' THEN CASES END) AS CASES,
+                MAX(CASE WHEN CASE_TYPE = 'Deaths' THEN CASES END) AS DEATHS
+            FROM {MARKETPLACE_JHU}
+            WHERE ISO3166_1 = %(iso_code)s
+              AND PROVINCE_STATE IS NULL AND COUNTY IS NULL
+        ),
+        state_level AS (
+            SELECT
+                PROVINCE_STATE,
+                MAX(CASE WHEN CASE_TYPE = 'Confirmed' THEN CASES END) AS CASES,
+                MAX(CASE WHEN CASE_TYPE = 'Deaths' THEN CASES END) AS DEATHS
+            FROM {MARKETPLACE_JHU}
+            WHERE ISO3166_1 = %(iso_code)s
+              AND PROVINCE_STATE IS NOT NULL AND COUNTY IS NULL
+            GROUP BY PROVINCE_STATE
+        )
+        SELECT
+            (SELECT CASES FROM country_level) AS COUNTRY_CASES,
+            (SELECT DEATHS FROM country_level) AS COUNTRY_DEATHS,
+            (SELECT SUM(CASES) FROM state_level) AS STATE_SUM_CASES,
+            (SELECT SUM(DEATHS) FROM state_level) AS STATE_SUM_DEATHS
+        """,
+        params={"iso_code": iso_code.upper()},
     )
+    t = totals_df.iloc[0]
+    confirmed_cases = max(filter(None, [t.COUNTRY_CASES, t.STATE_SUM_CASES]), default=None)
+    confirmed_deaths = max(filter(None, [t.COUNTRY_DEATHS, t.STATE_SUM_DEATHS]), default=None)
+    if confirmed_cases is None:
+        raise HTTPException(status_code=404, detail=f"No case data for country '{iso_code}'")
+    case_fatality_rate = confirmed_deaths / confirmed_cases if confirmed_cases else None
+
     return CountrySummary(
-        iso_code=r.ISO_CODE,
-        country_name=r.COUNTRY_NAME,
-        latest_date=r.LATEST_DATE,
-        total_population=r.TOTAL_POPULATION,
-        latest_confirmed_cases=r.LATEST_CONFIRMED_CASES,
-        latest_confirmed_deaths=r.LATEST_CONFIRMED_DEATHS,
+        iso_code=ctx.ISO_CODE,
+        country_name=ctx.COUNTRY_NAME,
+        latest_date=ctx.LATEST_DATE,
+        total_population=ctx.TOTAL_POPULATION,
+        latest_confirmed_cases=confirmed_cases,
+        latest_confirmed_deaths=confirmed_deaths,
         latest_case_fatality_rate=case_fatality_rate,
-        latest_people_fully_vaccinated_per_hundred=r.LATEST_PEOPLE_FULLY_VACCINATED_PER_HUNDRED,
-        median_age=r.MEDIAN_AGE,
-        gdp_per_capita=r.GDP_PER_CAPITA,
-        human_development_index=r.HUMAN_DEVELOPMENT_INDEX,
+        latest_people_fully_vaccinated_per_hundred=ctx.LATEST_PEOPLE_FULLY_VACCINATED_PER_HUNDRED,
+        median_age=ctx.MEDIAN_AGE,
+        gdp_per_capita=ctx.GDP_PER_CAPITA,
+        human_development_index=ctx.HUMAN_DEVELOPMENT_INDEX,
     )
 
 
