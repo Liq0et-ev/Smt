@@ -76,6 +76,37 @@ and [`transform/models/marts/core/_marts.yml`](../../transform/models/marts/core
 — they run automatically on every `dbt test` and fail the build if a new
 data-quality issue shows up.
 
+## Authentication: key-pair, not password
+
+The Python connector rejected password auth on this account with a
+generic "incorrect username or password" error, even with a
+browser-confirmed-correct password -- never fully root-caused (network
+policy and account-level restrictions were the leading theories, but
+inconclusive). Rather than keep debugging password auth blind, the
+project uses **key-pair authentication** instead, which is also the
+standard approach for non-interactive scripts/tools anyway (passwords
+are for humans logging into Snowsight; keys are for programs):
+
+```bash
+mkdir -p ~/.ssh/snowflake_keys
+openssl genrsa 2048 | openssl pkcs8 -topk8 -inform PEM -out ~/.ssh/snowflake_keys/snowflake_rsa_key.p8 -nocrypt
+openssl rsa -in ~/.ssh/snowflake_keys/snowflake_rsa_key.p8 -pubout -out ~/.ssh/snowflake_keys/snowflake_rsa_key.pub
+chmod 600 ~/.ssh/snowflake_keys/snowflake_rsa_key.p8
+cat ~/.ssh/snowflake_keys/snowflake_rsa_key.pub
+```
+
+Copy the base64 body (not the `BEGIN`/`END` lines) from that last
+command's output, then in Snowsight:
+
+```sql
+ALTER USER <your_username> SET RSA_PUBLIC_KEY='<paste the base64 body>';
+DESC USER <your_username>;  -- confirm RSA_PUBLIC_KEY_FP is now set
+```
+
+`common/config.py`/`common/snowflake_client.py` and `transform/profiles.yml`
+all prefer `SNOWFLAKE_PRIVATE_KEY_PATH` when set (falling back to
+`SNOWFLAKE_PASSWORD` if not) -- see `.env.example`.
+
 ## How to run this (on your machine, against your Snowflake account)
 
 ```bash
@@ -84,7 +115,8 @@ source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 
 cp .env.example .env
-# edit .env: fill in SNOWFLAKE_USER / SNOWFLAKE_PASSWORD at minimum
+# edit .env: fill in SNOWFLAKE_USER and SNOWFLAKE_PRIVATE_KEY_PATH
+# (pointing at the .p8 file generated above)
 ```
 
 1. **SQL EDA first** — open [`sql/03_eda_structure.sql`](../../sql/03_eda_structure.sql)

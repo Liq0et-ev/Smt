@@ -9,18 +9,45 @@ from snowflake.connector.pandas_tools import write_pandas
 from common.config import SnowflakeConfig, load_snowflake_config
 
 
+def _load_private_key_der(path: str, passphrase: str | None) -> bytes:
+    """Read a PEM private key file and return it in the DER/PKCS8 bytes
+    format the Snowflake connector's `private_key` parameter expects."""
+    from cryptography.hazmat.backends import default_backend
+    from cryptography.hazmat.primitives import serialization
+
+    with open(path, "rb") as key_file:
+        p_key = serialization.load_pem_private_key(
+            key_file.read(),
+            password=passphrase.encode() if passphrase else None,
+            backend=default_backend(),
+        )
+    return p_key.private_bytes(
+        encoding=serialization.Encoding.DER,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption(),
+    )
+
+
 @contextmanager
 def get_connection(config: SnowflakeConfig | None = None):
     config = config or load_snowflake_config()
-    conn = snowflake.connector.connect(
+
+    connect_kwargs = dict(
         account=config.account,
         user=config.user,
-        password=config.password,
         role=config.role,
         warehouse=config.warehouse,
         database=config.database,
         schema=config.schema,
     )
+    if config.private_key_path:
+        connect_kwargs["private_key"] = _load_private_key_der(
+            config.private_key_path, config.private_key_passphrase
+        )
+    else:
+        connect_kwargs["password"] = config.password
+
+    conn = snowflake.connector.connect(**connect_kwargs)
     try:
         yield conn
     finally:

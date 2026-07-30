@@ -13,13 +13,18 @@ load_dotenv()
 class SnowflakeConfig:
     account: str
     user: str
-    password: str
     role: str
     warehouse: str
     database: str
     schema: str
     marketplace_database: str
     marketplace_schema: str
+    # Auth: exactly one of these is used. Key-pair (private_key_path) is
+    # preferred when set -- it sidesteps password/MFA-related auth issues
+    # entirely and is the standard approach for non-interactive scripts.
+    password: str | None = None
+    private_key_path: str | None = None
+    private_key_passphrase: str | None = None
 
 
 @dataclass(frozen=True)
@@ -39,10 +44,20 @@ def _require(name: str) -> str:
 
 
 def load_snowflake_config() -> SnowflakeConfig:
+    private_key_path = os.environ.get("SNOWFLAKE_PRIVATE_KEY_PATH")
+    password = os.environ.get("SNOWFLAKE_PASSWORD")
+    if not private_key_path and not password:
+        raise RuntimeError(
+            "Set either SNOWFLAKE_PRIVATE_KEY_PATH (key-pair auth, preferred) "
+            "or SNOWFLAKE_PASSWORD in .env."
+        )
+
     return SnowflakeConfig(
         account=_require("SNOWFLAKE_ACCOUNT"),
         user=_require("SNOWFLAKE_USER"),
-        password=_require("SNOWFLAKE_PASSWORD"),
+        password=password,
+        private_key_path=private_key_path,
+        private_key_passphrase=os.environ.get("SNOWFLAKE_PRIVATE_KEY_PASSPHRASE"),
         role=os.environ.get("SNOWFLAKE_ROLE", "ACCOUNTADMIN"),
         warehouse=os.environ.get("SNOWFLAKE_WAREHOUSE", "COVID_WH"),
         database=os.environ.get("SNOWFLAKE_DATABASE", "COVID19_PLATFORM"),

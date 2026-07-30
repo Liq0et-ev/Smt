@@ -3,6 +3,11 @@
 # file with: export DBT_PROFILES_DIR=$(pwd)/transform
 # (requires the same .env used by the Python scripts to be loaded into
 # the shell environment, e.g. `set -a && source .env && set +a`)
+#
+# Uses key-pair authentication (private_key_path) to match common/config.py
+# -- see docs/tasks/task2_data_exploration_and_enhancement.md for why
+# (password auth hit an unresolved account-level issue; key-pair sidesteps
+# it and is the standard approach for non-interactive tools like dbt anyway).
 covid_platform:
   target: dev
   outputs:
@@ -10,7 +15,8 @@ covid_platform:
       type: snowflake
       account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
       user: "{{ env_var('SNOWFLAKE_USER') }}"
-      password: "{{ env_var('SNOWFLAKE_PASSWORD') }}"
+      private_key_path: "{{ env_var('SNOWFLAKE_PRIVATE_KEY_PATH') }}"
+      private_key_passphrase: "{{ env_var('SNOWFLAKE_PRIVATE_KEY_PASSPHRASE', '') }}"
       role: "{{ env_var('SNOWFLAKE_ROLE', 'ACCOUNTADMIN') }}"
       database: "{{ env_var('SNOWFLAKE_DATABASE', 'COVID19_PLATFORM') }}"
       warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE', 'COVID_WH') }}"
