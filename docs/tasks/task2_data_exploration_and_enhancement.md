@@ -107,6 +107,11 @@ DESC USER <your_username>;  -- confirm RSA_PUBLIC_KEY_FP is now set
 all prefer `SNOWFLAKE_PRIVATE_KEY_PATH` when set (falling back to
 `SNOWFLAKE_PASSWORD` if not) -- see `.env.example`.
 
+**Confirmed registered** on the live account via `DESC USER`:
+`HAS_KEYPAIR = true`, `RSA_PUBLIC_KEY_FP = SHA256:kEQSLf0pG14Y5d3m/yxNI7O2mWKfqxiIQFWN0f1NKNs=`,
+set `2026-07-30 06:35:10`. (Only the public key fingerprint is recorded
+here -- the private key never leaves the machine it was generated on.)
+
 ## How to run this (on your machine, against your Snowflake account)
 
 ```bash
