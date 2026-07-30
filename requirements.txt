@@ -12,6 +12,10 @@ python-dotenv==1.0.1
 # --- NoSQL (Task 3) ---
 pymongo==4.10.1
 
+# --- API (Task 4) ---
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+
 # Optional, heavier dependencies (visual EDA reports, etc.) live in
 # requirements-optional.txt -- kept separate because ydata-profiling's
 # dependency chain (numba/llvmlite) tends to lag support for brand-new

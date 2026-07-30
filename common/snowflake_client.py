@@ -60,7 +60,7 @@ def get_connection(config: SnowflakeConfig | None = None):
 
 
 def query_to_dataframe(
-    sql: str, config: SnowflakeConfig | None = None, conn=None
+    sql: str, params: tuple | dict | None = None, config: SnowflakeConfig | None = None, conn=None
 ) -> pd.DataFrame:
     """Run a query and return a DataFrame, built from plain
     fetchall()/description rather than cursor.fetch_pandas_all(). The
@@ -71,13 +71,19 @@ def query_to_dataframe(
     this project runs through here returns a small aggregate/metadata
     result, not raw multi-million-row tables.
 
+    Pass `params` (a tuple for `%s` placeholders, or a dict for `%(name)s`
+    placeholders) to safely bind values instead of string-interpolating
+    them into `sql` -- required whenever a query includes user-supplied
+    input (e.g. the API taking a country code from a URL), to avoid SQL
+    injection.
+
     Pass an existing `conn` to reuse a connection across multiple calls
     (e.g. looping over many tables) instead of opening a new one each time.
     """
     def _run(connection):
         cursor = connection.cursor()
         try:
-            cursor.execute(sql)
+            cursor.execute(sql, params)
             columns = [col[0] for col in cursor.description]
             rows = cursor.fetchall()
             return pd.DataFrame(rows, columns=columns)

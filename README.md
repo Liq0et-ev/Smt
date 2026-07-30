@@ -98,6 +98,16 @@ helper ([`mongo/client.py`](mongo/client.py)) the API (Task 4) will reuse.
 Runs entirely via local Docker (`docker-compose.yml`) — no dependency on
 Snowflake or the Task 2 connector issue.
 
+## Task 4 — API Development (FastAPI)
+
+See [`docs/tasks/task4_api_development.md`](docs/tasks/task4_api_development.md).
+Queries Snowflake's Gold layer based on user input, interacts with
+MongoDB for annotations, and runs on-the-fly processing (live latest-totals
+aggregation, and Task 9's `MATCH_RECOGNIZE` wave detection scoped to one
+country per request). All endpoints functionally verified with mocked
+data before running against the live account. Run with
+`uvicorn api.main:app --reload` or `docker compose up -d --build`.
+
 ## Task 7 — Snowflake Performance Optimization ✅
 
 See [`docs/tasks/task7_performance_optimization.md`](docs/tasks/task7_performance_optimization.md).

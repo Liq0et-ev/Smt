@@ -13,9 +13,29 @@ services:
       timeout: 5s
       retries: 5
 
-# api, dashboard, and mongo-express services are added in Task 10 once
-# the backend/dashboard code lands -- kept minimal here so Task 3 can be
-# run/tested on its own first.
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    container_name: covid_platform_api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      # Overrides whatever host path is in .env -- inside the container
+      # the key is always mounted at this fixed path (see volumes: below).
+      SNOWFLAKE_PRIVATE_KEY_PATH: /run/secrets/snowflake_rsa_key.p8
+      MONGO_URI: mongodb://mongo:27017
+    volumes:
+      - ${SNOWFLAKE_PRIVATE_KEY_PATH}:/run/secrets/snowflake_rsa_key.p8:ro
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+# dashboard/mongo-express services are added in Task 10 once the
+# dashboard code lands.
 
 volumes:
   mongo-data:
