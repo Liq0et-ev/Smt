@@ -44,6 +44,11 @@ def get_connection(config: SnowflakeConfig | None = None):
         connect_kwargs["private_key"] = _load_private_key_der(
             config.private_key_path, config.private_key_passphrase
         )
+        # Explicit rather than relying on auto-detection from `private_key`
+        # being present -- some connector versions need this stated
+        # directly to actually use key-pair (JWT) auth instead of falling
+        # through to password auth with an empty password.
+        connect_kwargs["authenticator"] = "SNOWFLAKE_JWT"
     else:
         connect_kwargs["password"] = config.password
 
