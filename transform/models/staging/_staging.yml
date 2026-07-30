@@ -4,7 +4,10 @@ models:
   - name: stg_jhu_covid_19
     description: >
       Silver-layer cleaned/pivoted JHU cases+deaths, one row per
-      (country, date), country-level only (sub-national rows filtered out).
+      (country, date). Prefers the country-level row where the source has
+      one; falls back to summing state-level rows for dates/countries
+      where it doesn't (e.g. the US, whose country-level row stops after
+      2020-03-24 in this source -- see sql/07_diagnose_us_summary_anomaly.sql).
     columns:
       - name: country_name
         tests: [not_null]
