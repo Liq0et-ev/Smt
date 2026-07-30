@@ -115,12 +115,23 @@ case/death totals are undercounts). Run with
 See [`docs/tasks/task5_dashboard.md`](docs/tasks/task5_dashboard.md).
 A single-page Dash app -- country picker, summary stat cards, a
 cases/deaths chart with Task 9's detected waves shaded on top, a
-vaccination progress chart, the JHU-vs-WHO cross-check chart, and
-(bonus) an annotations panel backed by MongoDB. Talks only to the
-FastAPI backend over HTTP, never to Snowflake/MongoDB directly. All
-callbacks verified with mocked API responses before running live. Run
-with `python -m dashboard.app` (needs the API running separately) or
-`docker compose up -d --build`.
+forecast chart (Task 6), a vaccination progress chart, the JHU-vs-WHO
+cross-check chart, and (bonus) an annotations panel backed by MongoDB.
+Talks only to the FastAPI backend over HTTP, never to Snowflake/MongoDB
+directly. All callbacks verified with mocked API responses before
+running live. Run with `python -m dashboard.app` (needs the API running
+separately) or `docker compose up -d --build`.
+
+## Task 6 — Forecasting ✅
+
+See [`docs/tasks/task6_forecasting.md`](docs/tasks/task6_forecasting.md).
+`GET /countries/{iso}/forecast` runs Holt-Winters exponential smoothing
+(weekly seasonality + damped trend) live per request on a country's
+recent daily new cases -- no pre-trained model, fit fresh on every
+call. Verified against synthetic data with a known trend/seasonality,
+and through the full API via `TestClient`. Clustering (the bonus half
+of Task 6) was intentionally left out under a time constraint --
+documented, not silently skipped.
 
 ## Task 7 — Snowflake Performance Optimization ✅
 

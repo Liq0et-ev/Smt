@@ -13,6 +13,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY common/ ./common/
 COPY mongo/ ./mongo/
+COPY analytics/ ./analytics/
 COPY api/ ./api/
 
 EXPOSE 8000

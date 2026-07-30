@@ -49,6 +49,16 @@ def get_waves(iso_code: str) -> list[dict]:
     return resp.json()
 
 
+def get_forecast(iso_code: str, days: int = 30) -> list[dict]:
+    resp = requests.get(
+        f"{API_BASE_URL}/countries/{iso_code}/forecast", params={"days": days}, timeout=TIMEOUT
+    )
+    if resp.status_code in (400, 404):
+        return []
+    resp.raise_for_status()
+    return resp.json()
+
+
 def get_annotations(iso_code: str, metric: str | None = None) -> list[dict]:
     params = {"metric": metric} if metric else {}
     resp = requests.get(

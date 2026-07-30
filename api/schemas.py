@@ -65,6 +65,14 @@ class WaveRecord(BaseModel):
     peak_7d_avg_new_cases: float | None = None
 
 
+class ForecastRecord(BaseModel):
+    """Task 6 (required): one day of Holt-Winters forecast output,
+    run on-the-fly per request (analytics/forecasting.py)."""
+    date: date
+    predicted_new_cases: float
+    predicted_cumulative_cases: float
+
+
 class AnnotationCreate(BaseModel):
     metric: str = Field(..., description="confirmed_cases | confirmed_deaths | vaccinations | mobility | other")
     comment: str = Field(..., min_length=1, max_length=2000)

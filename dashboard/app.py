@@ -102,6 +102,7 @@ app.layout = html.Div(
             )
         ),
         dcc.Loading(dcc.Graph(id="cases-deaths-graph")),
+        dcc.Loading(dcc.Graph(id="forecast-graph")),
         dcc.Loading(dcc.Graph(id="vaccination-graph")),
         dcc.Loading(dcc.Graph(id="crosscheck-graph")),
         html.Hr(),
@@ -139,6 +140,7 @@ app.layout = html.Div(
 @app.callback(
     Output("summary-cards", "children"),
     Output("cases-deaths-graph", "figure"),
+    Output("forecast-graph", "figure"),
     Output("vaccination-graph", "figure"),
     Output("crosscheck-graph", "figure"),
     Input("country-dropdown", "value"),
@@ -147,12 +149,13 @@ app.layout = html.Div(
 )
 def update_country_view(iso_code, start_date, end_date):
     if not iso_code:
-        return [], go.Figure(), go.Figure(), go.Figure()
+        return [], go.Figure(), go.Figure(), go.Figure(), go.Figure()
 
     summary = api_client.get_summary(iso_code)
     daily = api_client.get_daily(iso_code, start_date, end_date)
     waves = api_client.get_waves(iso_code)
     cross_check = api_client.get_cross_check(iso_code)
+    forecast = api_client.get_forecast(iso_code, days=30)
 
     if summary:
         cfr = summary.get("latest_case_fatality_rate")
@@ -203,6 +206,28 @@ def update_country_view(iso_code, start_date, end_date):
         legend=dict(orientation="h"),
     )
 
+    forecast_fig = go.Figure()
+    historical_new_cases = [None]
+    for i in range(1, len(daily)):
+        prev_cases, cur_cases = daily[i - 1]["confirmed_cases"], daily[i]["confirmed_cases"]
+        historical_new_cases.append(
+            max(cur_cases - prev_cases, 0) if prev_cases is not None and cur_cases is not None else None
+        )
+    forecast_fig.add_trace(
+        go.Scatter(x=dates, y=historical_new_cases, name="Historical new cases", mode="lines")
+    )
+    forecast_fig.add_trace(
+        go.Scatter(
+            x=[f["date"] for f in forecast], y=[f["predicted_new_cases"] for f in forecast],
+            name="Forecast (Holt-Winters)", mode="lines", line=dict(dash="dash"),
+        )
+    )
+    forecast_fig.update_layout(
+        title="Daily new cases: recent history + 30-day forecast (Task 6)",
+        yaxis_title="New cases / day",
+        legend=dict(orientation="h"),
+    )
+
     vacc_fig = go.Figure()
     vacc_fig.add_trace(
         go.Scatter(
@@ -220,7 +245,7 @@ def update_country_view(iso_code, start_date, end_date):
     )
     cc_fig.update_layout(title="JHU vs. WHO reported cases (data-quality cross-check)", yaxis_title="Confirmed cases")
 
-    return cards, cases_fig, vacc_fig, cc_fig
+    return cards, cases_fig, forecast_fig, vacc_fig, cc_fig
 
 
 def render_annotations(iso_code: str) -> list:

@@ -5,7 +5,15 @@ import logging
 
 from fastapi import APIRouter, HTTPException, Query
 
-from api.schemas import Country, CountryDailyRecord, CountrySummary, CrossCheckRecord, WaveRecord
+from analytics.forecasting import forecast_new_cases
+from api.schemas import (
+    Country,
+    CountryDailyRecord,
+    CountrySummary,
+    CrossCheckRecord,
+    ForecastRecord,
+    WaveRecord,
+)
 from common.snowflake_client import query_to_dataframe
 
 logger = logging.getLogger(__name__)
@@ -261,3 +269,37 @@ def get_country_waves(iso_code: str):
         )
         for r in df.itertuples()
     ]
+
+
+@router.get("/{iso_code}/forecast", response_model=list[ForecastRecord])
+def get_country_forecast(
+    iso_code: str,
+    days: int = Query(30, ge=1, le=90, description="How many days ahead to forecast"),
+):
+    """Task 6 (required): on-the-fly time series forecasting -- Holt-Winters
+    exponential smoothing (see analytics/forecasting.py) fit fresh on
+    every request against the country's recent daily case history, not a
+    pre-computed model. Note: for countries JHU reports at state/province
+    granularity in this Marketplace mirror (the US being the clearest
+    example -- see /summary's docstring), the underlying daily series is
+    itself an undercount, so the forecast inherits that same limitation."""
+    df = query_to_dataframe(
+        f"""
+        SELECT REPORT_DATE, CONFIRMED_CASES
+        FROM {GOLD}.COUNTRY_DAILY_ENRICHED
+        WHERE ISO_CODE = %(iso_code)s AND CONFIRMED_CASES IS NOT NULL
+        ORDER BY REPORT_DATE
+        """,
+        params={"iso_code": iso_code.upper()},
+    )
+    if df.empty:
+        raise HTTPException(status_code=404, detail=f"No data for country '{iso_code}'")
+    try:
+        forecast = forecast_new_cases(
+            dates=df["REPORT_DATE"].tolist(),
+            cumulative_cases=df["CONFIRMED_CASES"].tolist(),
+            periods=days,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return [ForecastRecord(**row) for row in forecast]
