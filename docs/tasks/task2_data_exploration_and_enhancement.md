@@ -112,6 +112,53 @@ all prefer `SNOWFLAKE_PRIVATE_KEY_PATH` when set (falling back to
 set `2026-07-30 06:35:10`. (Only the public key fingerprint is recorded
 here -- the private key never leaves the machine it was generated on.)
 
+### Resolution
+
+Even with the key registered correctly (fingerprint match confirmed
+locally), the connector initially still failed with the same generic
+"incorrect username or password" error. Diagnostic process before
+finding the actual cause: confirmed the password itself was correct
+(browser + password manager), confirmed no Network Policy existed,
+confirmed no Authentication Policy existed, confirmed the account
+wasn't locked and MFA was disabled (`DESC USER`), confirmed the local
+private key file's fingerprint matched the one registered in Snowflake
+exactly, confirmed the system clock was accurate (ruling out JWT
+timestamp rejection), confirmed `.env` had no stray
+whitespace/formatting issues.
+
+**Root cause**: `snowflake-connector-python` does not reliably
+auto-detect key-pair authentication just from the `private_key`
+parameter being present -- it needs `authenticator="SNOWFLAKE_JWT"`
+passed explicitly (see `common/snowflake_client.py`). Once added, the
+connection succeeded immediately. This explains why *password* auth had
+also been failing with the same generic message throughout this whole
+investigation: unrelated to this fix, but the account genuinely does
+have some other password-auth-specific issue that was never
+identified -- moot now, since key-pair auth is both the fix and the
+better long-term approach for non-interactive tools regardless.
+
+**Verified working** — Tier 1 survey ran successfully against all 43
+tables via `python -m eda.automated_eda --survey`:
+
+| Table | Rows | Date range |
+|---|---|---|
+| `JHU_COVID_19_TIMESERIES` | 12,450,699 | 2020-01-22 – 2023-03-09 |
+| `GOOG_GLOBAL_MOBILITY_REPORT` | 11,730,025 | 2020-02-15 – 2022-10-15 |
+| `JHU_COVID_19` | 9,738,292 | 2020-01-22 – 2023-03-09 |
+| `APPLE_MOBILITY` | 3,851,311 | 2020-01-13 – 2022-04-12 |
+| `NYT_US_COVID19` | 3,525,161 | 2020-01-21 – 2023-03-23 |
+| `OWID_VACCINATIONS` | 169,179 | 2020-12-02 – 2023-12-13 |
+| `ECDC_GLOBAL` | 61,900 | 2019-12-31 – 2020-12-14 (short window) |
+| `WHO_SITUATION_REPORTS` | 30,722 | 2020-03-02 – 2020-08-09 (short window) |
+| `DATABANK_DEMOGRAPHICS` | 216 | static (no date column) |
+
+Full 43-table output: `reports/eda/dataset_survey.csv`. Notable finding:
+`JHU_COVID_19` actually spans nearly the full pandemic period through
+March 2023 -- longer than initially assumed -- while `ECDC_GLOBAL` and
+`WHO_SITUATION_REPORTS` are confirmed genuinely short-window sources
+(2020 only), reinforcing why `JHU_COVID_19` is the right primary source
+for this project rather than those two.
+
 ## How to run this (on your machine, against your Snowflake account)
 
 ```bash

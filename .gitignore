@@ -29,6 +29,7 @@ data/processed/
 *.parquet
 *.csv
 !data/**/sample_*.csv
+!reports/eda/dataset_survey.csv
 models/*.pkl
 models/*.joblib
 

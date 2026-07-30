@@ -73,17 +73,16 @@ for full write-up (including the full 44-table inventory). Summary:
    pre-existing account-level monitors (`DAILY_MONITORING`,
    `MONTHLY_MONITORING`).
 
-## Task 2 — Data Exploration and Enhancement (code complete, live run pending)
+## Task 2 — Data Exploration and Enhancement (Python connector working)
 
 See [`docs/tasks/task2_data_exploration_and_enhancement.md`](docs/tasks/task2_data_exploration_and_enhancement.md).
 SQL-based EDA, Python augmentation into Bronze, dbt transformation into
-Silver/Gold, and an automated EDA profiler. All code is written and pushed;
-running it end-to-end against the live account is currently blocked by a
-Snowflake **Python connector** authentication issue (Snowsight/browser
-access works fine — this is specific to connecting from Python/dbt, most
-likely an account network policy). The SQL-only parts of this task
-(`sql/03_eda_structure.sql`) can and should still be run directly in
-Snowsight in the meantime.
+Silver/Gold, and an automated EDA profiler. The Python connector
+originally rejected both password and key-pair auth with a generic
+error; root-caused to `snowflake-connector-python` needing
+`authenticator="SNOWFLAKE_JWT"` passed explicitly alongside
+`private_key` (not auto-detected) — now resolved, and the Tier 1
+landscape survey is verified against all 43 live tables.
 
 ## Task 3 — NoSQL (MongoDB) schema design ✅
 
