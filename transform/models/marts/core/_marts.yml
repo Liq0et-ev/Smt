@@ -15,13 +15,15 @@ models:
       - name: case_fatality_rate
         tests:
           - dbt_utils.accepted_range:
-              min_value: 0
-              max_value: 1
+              arguments:
+                min_value: 0
+                max_value: 1
               config:
                 severity: warn
     tests:
       - dbt_utils.unique_combination_of_columns:
-          combination_of_columns: [iso_code, report_date]
+          arguments:
+            combination_of_columns: [iso_code, report_date]
 
   - name: jhu_who_cross_check
     description: >

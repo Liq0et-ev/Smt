@@ -13,12 +13,14 @@ models:
       - name: confirmed_cases
         tests:
           - dbt_utils.accepted_range:
-              min_value: -1000000000
+              arguments:
+                min_value: -1000000000
               config:
                 severity: warn   # negative deltas can be legitimate reporting corrections (see Task 2 EDA) -- warn, don't fail
     tests:
       - dbt_utils.unique_combination_of_columns:
-          combination_of_columns: [iso_code, report_date]
+          arguments:
+            combination_of_columns: [iso_code, report_date]
 
   - name: stg_owid_vaccinations
     description: Silver-layer cleaned vaccination rollout by country/day.
@@ -29,7 +31,8 @@ models:
         tests: [not_null]
     tests:
       - dbt_utils.unique_combination_of_columns:
-          combination_of_columns: [country_name, report_date]
+          arguments:
+            combination_of_columns: [country_name, report_date]
 
   - name: stg_who_situation_reports
     description: >
@@ -49,7 +52,8 @@ models:
       - name: total_population
         tests:
           - dbt_utils.accepted_range:
-              min_value: 0
+              arguments:
+                min_value: 0
 
   - name: stg_country_indicators
     description: Silver-layer country economic/health-system indicators (Bronze -> Silver).

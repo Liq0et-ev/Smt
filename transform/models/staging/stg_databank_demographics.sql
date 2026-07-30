@@ -5,6 +5,11 @@
 -- Population comes from here rather than the external augmentation, so
 -- etl/augment_country_indicators.py deliberately does NOT re-fetch
 -- population from OWID -- no point duplicating a metric we already have.
+--
+-- A dbt test against live data (Task 2) found exactly one duplicate
+-- iso_code in this source table -- deduped defensively here (keep one
+-- row per iso_code, arbitrary but deterministic tiebreak) rather than
+-- silently trusting the source is clean.
 
 with source as (
     select * from {{ source('marketplace', 'databank_demographics') }}
@@ -18,3 +23,4 @@ select
     total_female_population
 from source
 where iso3166_1 is not null
+qualify row_number() over (partition by iso3166_1 order by country_region) = 1
