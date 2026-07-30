@@ -73,6 +73,25 @@ host path in `SNOWFLAKE_PRIVATE_KEY_PATH` (`.env`) and connects to the
 `mongo` container directly (not `localhost`) via Docker's internal
 network.
 
+## Known limitation: daily series for state-reported countries
+
+`/daily` (and `/waves`, which reuses the same underlying series) for
+countries JHU tracks at state/province granularity in this Marketplace
+mirror (the US being the clearest example) undercounts on any given day,
+because not every state reports on every date -- there's no single date
+where all ~60 US states have a row simultaneously, so each day's summed
+total is a partial count. `/summary` sidesteps this (see its docstring:
+it sums each state's own highest-ever recorded value instead of summing
+*by date*), but that trick only works for a single "current total," not
+a day-by-day series -- a correct daily series would need each state's
+cumulative count forward-filled onto the days it didn't report, which is
+a real gap-filling problem (`LAST_VALUE(...) IGNORE NULLS` per state,
+then re-sum per date) left undone here as an intentional scope
+boundary. Documenting it here as a known data-quality finding rather
+than silently leaving it unexplained -- it's a legitimate, citable
+insight for the final report (JHU's per-country reporting granularity
+is inconsistent both across countries and over time).
+
 ## Try it
 
 ```bash
