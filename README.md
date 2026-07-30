@@ -154,5 +154,20 @@ runnable directly in Snowsight: automatic per-country "wave" detection
 (sustained rise then fall in smoothed daily new cases) and rapid-growth
 surge detection, both via `MATCH_RECOGNIZE`.
 
-Further setup/deployment instructions (env vars, running the API/dashboard)
-will be added here as those pieces land.
+## Task 10 — Deployment ✅
+
+See [`docs/tasks/task10_deployment.md`](docs/tasks/task10_deployment.md)
+for the full ordered setup -- from a clean checkout, through Snowflake
+groundwork, the Python environment, Bronze/Silver/Gold, and running the
+API/dashboard/MongoDB -- plus an environment variable reference and a
+consolidated list of known limitations. Quickstart, once `.env` is
+filled in and the Snowflake-side setup (Tasks 1/2/7/9's SQL scripts)
+has been run once in Snowsight:
+
+```bash
+docker compose up -d --build
+docker compose exec api python -m mongo.init_collections   # one-time
+```
+
+Then open `http://localhost:8050` (dashboard) and
+`http://localhost:8000/docs` (API).

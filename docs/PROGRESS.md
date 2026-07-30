@@ -9,5 +9,5 @@
 - [x] Task 7 — Snowflake performance optimization — **verified**: clustered `GOLD.JHU_COUNTRY_DAILY` scans ~2.2x less data and runs ~5.3x faster than raw `JHU_COVID_19`, confirmed by Snowflake's own Query Profile ("Filter with clustering key")
 - [ ] Task 8 — API caching — not started
 - [x] Task 9 — Pattern recognition (MATCH_RECOGNIZE) — **verified**: 416 waves + 2,986 surges detected against live data; surge detection independently rediscovered the real Omicron wave timing (Dec 2021-Mar 2022). Note: this account's `MATCH_RECOGNIZE` needs `LAG()` instead of the standard `PREV()` navigation function -- documented in `docs/tasks/task9_pattern_recognition.md`
-- [ ] Task 10 — GitHub repo + README + deployment docs — partially in place (per-task docs, docker-compose.yml started); full deployment README pending
+- [x] Task 10 — GitHub repo + README + deployment docs — **done**: `docs/tasks/task10_deployment.md` walks through the full ordered setup from a clean checkout (Snowflake groundwork -> Python env -> Bronze/Silver/Gold -> API/dashboard/MongoDB), an environment variable reference, and a consolidated known-limitations list; README links to it with a Docker Compose quickstart.
 - [ ] Final report (PDF/Word) with insights — not started
