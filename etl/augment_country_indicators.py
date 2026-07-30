@@ -31,7 +31,15 @@ from common.snowflake_client import execute, upload_dataframe
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
-OWID_LATEST_URL = "https://covid.ourworldindata.org/data/latest/owid-covid-latest.csv"
+# Our World in Data publishes this same file to their own domain AND to
+# their public GitHub repo (the website is effectively a mirror of the
+# repo). Using the GitHub-hosted copy here since some restricted/managed
+# networks allow github.com/raw.githubusercontent.com (needed for `git`
+# itself) but block arbitrary other domains like ourworldindata.org.
+OWID_LATEST_URL = (
+    "https://raw.githubusercontent.com/owid/covid-19-data/master/"
+    "public/data/latest/owid-covid-latest.csv"
+)
 
 # Demographic/economic columns we augment with. Deliberately excludes:
 #   - OWID's own case/death/vaccination counts -- we already have those
