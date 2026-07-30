@@ -34,8 +34,22 @@ services:
       mongo:
         condition: service_healthy
 
-# dashboard/mongo-express services are added in Task 10 once the
-# dashboard code lands.
+  dashboard:
+    build:
+      context: .
+      dockerfile: dashboard/Dockerfile
+    container_name: covid_platform_dashboard
+    restart: unless-stopped
+    ports:
+      - "8050:8050"
+    environment:
+      # Talks to the API container directly over Docker's internal
+      # network, not localhost -- same pattern as MONGO_URI above.
+      API_BASE_URL: http://api:8000
+    depends_on:
+      - api
+
+# mongo-express (optional NoSQL admin UI) can be added in Task 10 if useful.
 
 volumes:
   mongo-data:
