@@ -56,7 +56,7 @@ for the reasoning and the full 44-table catalog.
 
 See [`transform/README.md`](transform/README.md) for how to run dbt.
 
-## Task 1 — Snowflake Marketplace dataset + resource monitors ✅
+## Task 1 — Snowflake Marketplace dataset + resource monitors 
 
 See [`docs/tasks/task1_marketplace_and_resource_monitors.md`](docs/tasks/task1_marketplace_and_resource_monitors.md)
 for full write-up (including the full 44-table inventory). Summary:
@@ -73,7 +73,7 @@ for full write-up (including the full 44-table inventory). Summary:
    pre-existing account-level monitors (`DAILY_MONITORING`,
    `MONTHLY_MONITORING`).
 
-## Task 2 — Data Exploration and Enhancement ✅
+## Task 2 — Data Exploration and Enhancement 
 
 See [`docs/tasks/task2_data_exploration_and_enhancement.md`](docs/tasks/task2_data_exploration_and_enhancement.md).
 SQL-based EDA, Python augmentation into Bronze, dbt transformation into
@@ -88,7 +88,7 @@ against live data also surfaced and fixed two real data-quality issues
 (a duplicate demographics row, and name-spelling duplicates in
 JHU/OWID that were fanning out a join) — see the task doc for details.
 
-## Task 3 — NoSQL (MongoDB) schema design ✅
+## Task 3 — NoSQL (MongoDB) schema design 
 
 See [`docs/tasks/task3_mongodb_schema.md`](docs/tasks/task3_mongodb_schema.md).
 Three collections (`annotations`, `supplementary_sources`,
@@ -98,7 +98,7 @@ helper ([`mongo/client.py`](mongo/client.py)) the API (Task 4) will reuse.
 Runs entirely via local Docker (`docker-compose.yml`) — no dependency on
 Snowflake or the Task 2 connector issue.
 
-## Task 4 — API Development (FastAPI) ✅
+## Task 4 — API Development (FastAPI) 
 
 See [`docs/tasks/task4_api_development.md`](docs/tasks/task4_api_development.md).
 Queries Snowflake's Gold layer based on user input, interacts with
@@ -110,7 +110,7 @@ plus one documented, unresolved limitation (state-reported countries'
 case/death totals are undercounts). Run with
 `uvicorn api.main:app --reload` or `docker compose up -d --build`.
 
-## Task 5 — Interactive Visualization Dashboard (Dash/Plotly) ✅
+## Task 5 — Interactive Visualization Dashboard (Dash/Plotly) 
 
 See [`docs/tasks/task5_dashboard.md`](docs/tasks/task5_dashboard.md).
 A single-page Dash app -- country picker, summary stat cards, a
@@ -125,7 +125,7 @@ blank the whole page; now isolated per-chart). Run with
 `python -m dashboard.app` (needs the API running separately) or
 `docker compose up -d --build`.
 
-## Task 6 — Forecasting ✅
+## Task 6 — Forecasting 
 
 See [`docs/tasks/task6_forecasting.md`](docs/tasks/task6_forecasting.md).
 `GET /countries/{iso}/forecast` runs Holt-Winters exponential smoothing
@@ -136,7 +136,7 @@ and through the full API via `TestClient`. Clustering (the bonus half
 of Task 6) was intentionally left out under a time constraint --
 documented, not silently skipped.
 
-## Task 7 — Snowflake Performance Optimization ✅
+## Task 7 — Snowflake Performance Optimization 
 
 See [`docs/tasks/task7_performance_optimization.md`](docs/tasks/task7_performance_optimization.md).
 Self-contained SQL ([`sql/05_performance_optimization.sql`](sql/05_performance_optimization.sql))
@@ -146,7 +146,7 @@ be altered), adds a clustering key on `(ISO_CODE, REPORT_DATE)`, and a
 materialized view for a common dashboard aggregate — with before/after
 query profiling to demonstrate the effect.
 
-## Task 9 — Pattern Recognition (`MATCH_RECOGNIZE`) ✅
+## Task 9 — Pattern Recognition (`MATCH_RECOGNIZE`) 
 
 See [`docs/tasks/task9_pattern_recognition.md`](docs/tasks/task9_pattern_recognition.md).
 Self-contained SQL ([`sql/06_pattern_recognition_match_recognize.sql`](sql/06_pattern_recognition_match_recognize.sql))
@@ -154,7 +154,7 @@ runnable directly in Snowsight: automatic per-country "wave" detection
 (sustained rise then fall in smoothed daily new cases) and rapid-growth
 surge detection, both via `MATCH_RECOGNIZE`.
 
-## Task 10 — Deployment ✅
+## Task 10 — Deployment 
 
 See [`docs/tasks/task10_deployment.md`](docs/tasks/task10_deployment.md)
 for the full ordered setup -- from a clean checkout, through Snowflake
